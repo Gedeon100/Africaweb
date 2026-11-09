@@ -16,9 +16,10 @@ import { LiveSiteSimulator } from './components/LiveSiteSimulator';
 import { OwnerLoginModal } from './components/OwnerLoginModal';
 import { OwnerDashboardModal } from './components/OwnerDashboardModal';
 import { ProjectItem, PricingPackage } from './data/agencyData';
+import { LogOut } from 'lucide-react';
 
 function MainContent() {
-  const { isOwnerLoggedIn, siteColors, siteTypography } = useAgency();
+  const { isOwnerLoggedIn, logoutOwner, siteColors, siteTypography } = useAgency();
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
   const [simulatorProject, setSimulatorProject] = useState<ProjectItem | null>(null);
   const [selectedPlanForContact, setSelectedPlanForContact] = useState<string>('vitrine');
@@ -63,6 +64,7 @@ function MainContent() {
       <Navbar
         onOpenContact={() => scrollToContact()}
         onOpenOwnerDashboard={() => setIsOwnerDashboardOpen(true)}
+        onOpenOwnerLogin={() => setIsOwnerLoginOpen(true)}
       />
 
       {/* Main Content */}
@@ -76,6 +78,7 @@ function MainContent() {
         {/* Video Presentation Section (Customizable by Owner) */}
         <VideoPresentation
           onOpenOwnerDashboard={() => setIsOwnerDashboardOpen(true)}
+          onOpenOwnerLogin={() => setIsOwnerLoginOpen(true)}
         />
 
         {/* Featured Product Section (Image 2 with direct sales page redirect) */}
@@ -108,6 +111,40 @@ function MainContent() {
 
       {/* Floating WhatsApp Action Button (Always reachable on Android) */}
       <FloatingWhatsApp />
+
+      {/* Floating Owner Dashboard Access Button (Always reachable on Android & PC) */}
+      <div className="fixed bottom-6 left-4 sm:left-6 z-40 flex items-center gap-2">
+        {isOwnerLoggedIn ? (
+          <>
+            <button
+              onClick={() => setIsOwnerDashboardOpen(true)}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#05235c] hover:bg-[#073587] text-white text-xs font-black shadow-xl border-2 border-amber-400 hover:scale-105 transition-all cursor-pointer group"
+              title="Ouvrir le Panneau de Contrôle Propriétaire"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-amber-300">Tableau de Bord</span>
+              <span className="hidden sm:inline text-white/80 font-bold text-[11px]">· Espace Propriétaire</span>
+            </button>
+            <button
+              onClick={logoutOwner}
+              className="p-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-xl border-2 border-red-400 hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
+              title="Se déconnecter de mon espace propriétaire"
+              aria-label="Déconnexion"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setIsOwnerLoginOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-slate-900/90 hover:bg-slate-900 text-white text-xs font-bold shadow-lg border border-slate-700 hover:scale-105 transition-all cursor-pointer backdrop-blur-xs opacity-90 hover:opacity-100"
+            title="Accès Propriétaire (Connexion)"
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span className="text-slate-200">Accès Propriétaire</span>
+          </button>
+        )}
+      </div>
 
       {/* Project Case Study Details Modal */}
       <ProjectModal

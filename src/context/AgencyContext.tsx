@@ -124,6 +124,8 @@ interface AgencyContextType {
   addNavLink: (link: NavLinkItem) => void;
   updateFooterConfig: (data: Partial<FooterConfig>) => void;
   trackClick: (type: 'whatsapp' | 'email' | 'product' | 'quote') => void;
+  simulateVisit: () => void;
+  resetAnalytics: () => void;
   resetToDefaults: () => void;
 }
 
@@ -335,7 +337,10 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // 11. Owner Authentication
   const [isOwnerLoggedIn, setIsOwnerLoggedIn] = useState<boolean>(() => {
-    return sessionStorage.getItem(`${STORAGE_KEY_PREFIX}owner_auth`) === 'true';
+    return (
+      localStorage.getItem(`${STORAGE_KEY_PREFIX}owner_auth`) === 'true' ||
+      sessionStorage.getItem(`${STORAGE_KEY_PREFIX}owner_auth`) === 'true'
+    );
   });
 
   // Track session visit once per mount
@@ -455,6 +460,7 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const cleanPass = pass.trim();
     if (cleanEmail === 'kgmservices229@gmail.com' && cleanPass === 'Samuell@8') {
       setIsOwnerLoggedIn(true);
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}owner_auth`, 'true');
       sessionStorage.setItem(`${STORAGE_KEY_PREFIX}owner_auth`, 'true');
       return true;
     }
@@ -463,6 +469,7 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const logoutOwner = () => {
     setIsOwnerLoggedIn(false);
+    localStorage.removeItem(`${STORAGE_KEY_PREFIX}owner_auth`);
     sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}owner_auth`);
   };
 
@@ -545,6 +552,41 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  const simulateVisit = () => {
+    setAnalytics(prev => {
+      const updated = {
+        ...prev,
+        totalVisits: prev.totalVisits + 1,
+        uniqueVisitors: prev.uniqueVisitors + 1,
+        countryVisits: {
+          ...prev.countryVisits,
+          'Bénin 🇧🇯': (prev.countryVisits['Bénin 🇧🇯'] || 0) + 1
+        }
+      };
+      safeLocalStorageSet(`${STORAGE_KEY_PREFIX}analytics`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const resetAnalytics = () => {
+    const fresh: AnalyticsData = {
+      totalVisits: 100,
+      uniqueVisitors: 65,
+      clicksWhatsApp: 28,
+      clicksEmail: 12,
+      clicksFeaturedProduct: 18,
+      clicksQuoteForm: 9,
+      countryVisits: {
+        'Bénin 🇧🇯': 50,
+        'Côte d\'Ivoire 🇨🇮': 25,
+        'Sénégal 🇸🇳': 15,
+        'Togo 🇹🇬': 10
+      }
+    };
+    setAnalytics(fresh);
+    safeLocalStorageSet(`${STORAGE_KEY_PREFIX}analytics`, JSON.stringify(fresh));
+  };
+
   const resetToDefaults = async () => {
     try {
       await deleteMediaBlob('presentation_video');
@@ -591,6 +633,8 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addNavLink,
         updateFooterConfig,
         trackClick,
+        simulateVisit,
+        resetAnalytics,
         resetToDefaults
       }}
     >

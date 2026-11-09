@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Phone, MessageCircle, ArrowUp, Lock, ShieldCheck } from 'lucide-react';
+import { Mail, Phone, MessageCircle, ArrowUp, Lock, ShieldCheck, LogOut } from 'lucide-react';
 import { useAgency } from '../context/AgencyContext';
 import { getWhatsAppUrl } from '../data/agencyData';
 
@@ -9,7 +9,7 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ onOpenOwnerLogin, onOpenOwnerDashboard }) => {
-  const { agencyInfo, footerConfig, siteColors, isOwnerLoggedIn, trackClick } = useAgency();
+  const { agencyInfo, footerConfig, siteColors, isOwnerLoggedIn, logoutOwner, trackClick } = useAgency();
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -134,15 +134,24 @@ export const Footer: React.FC<FooterProps> = ({ onOpenOwnerLogin, onOpenOwnerDas
                 <li>
                   <a href="#contact" className="hover:text-white transition-colors">Contactez-nous</a>
                 </li>
-                <li className="pt-2 border-t border-slate-800">
+                <li className="pt-2 border-t border-slate-800 space-y-1.5">
                   {isOwnerLoggedIn ? (
-                    <button
-                      onClick={onOpenOwnerDashboard}
-                      className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
-                    >
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Mon Tableau de Bord Propriétaire (Connecté)</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={onOpenOwnerDashboard}
+                        className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Mon Tableau de Bord (Connecté)</span>
+                      </button>
+                      <button
+                        onClick={logoutOwner}
+                        className="flex items-center gap-1.5 text-red-400 hover:text-red-300 text-[11px] font-black transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Se déconnecter</span>
+                      </button>
+                    </>
                   ) : (
                     <button
                       onClick={onOpenOwnerLogin}

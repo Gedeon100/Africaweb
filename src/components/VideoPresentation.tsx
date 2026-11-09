@@ -1,12 +1,13 @@
 import React, { useRef, useState } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize2, Video, Sparkles, Upload, Settings } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize2, Video, Sparkles, Upload, Settings, Lock } from 'lucide-react';
 import { useAgency } from '../context/AgencyContext';
 
 interface VideoPresentationProps {
   onOpenOwnerDashboard?: () => void;
+  onOpenOwnerLogin?: () => void;
 }
 
-export const VideoPresentation: React.FC<VideoPresentationProps> = ({ onOpenOwnerDashboard }) => {
+export const VideoPresentation: React.FC<VideoPresentationProps> = ({ onOpenOwnerDashboard, onOpenOwnerLogin }) => {
   const { videoPresentation, isOwnerLoggedIn } = useAgency();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -52,16 +53,30 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({ onOpenOwne
             {videoPresentation.subtitle}
           </p>
 
-          {isOwnerLoggedIn && onOpenOwnerDashboard && (
-            <div className="mt-3">
-              <button
-                onClick={onOpenOwnerDashboard}
-                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg transition-colors cursor-pointer"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Modifier ou importer une nouvelle vidéo depuis votre appareil</span>
-              </button>
-            </div>
+          {isOwnerLoggedIn ? (
+            onOpenOwnerDashboard && (
+              <div className="mt-3">
+                <button
+                  onClick={onOpenOwnerDashboard}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-slate-950 bg-amber-400 hover:bg-amber-500 rounded-lg transition-colors cursor-pointer shadow-xs"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Modifier ou importer une nouvelle vidéo depuis votre appareil</span>
+                </button>
+              </div>
+            )
+          ) : (
+            onOpenOwnerLogin && (
+              <div className="mt-3">
+                <button
+                  onClick={onOpenOwnerLogin}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Modifier la vidéo (Espace Propriétaire)</span>
+                </button>
+              </div>
+            )
           )}
         </div>
 

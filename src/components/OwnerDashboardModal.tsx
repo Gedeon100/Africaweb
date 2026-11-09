@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   BarChart3,
@@ -24,7 +24,10 @@ import {
   Layout,
   Eye,
   EyeOff,
-  Server
+  Server,
+  Sparkles,
+  AlertTriangle,
+  ShieldCheck
 } from 'lucide-react';
 import { useAgency, NavLinkItem } from '../context/AgencyContext';
 import { ProjectItem } from '../data/agencyData';
@@ -50,6 +53,7 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     updateAgencyInfo,
     updatePricingPackage,
     addPortfolioProject,
+    updatePortfolioProject,
     deletePortfolioProject,
     updateVideoPresentation,
     updateTypography,
@@ -59,11 +63,19 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     deleteNavLink,
     addNavLink,
     updateFooterConfig,
+    trackClick,
+    simulateVisit,
+    resetAnalytics,
     resetToDefaults
   } = useAgency();
 
   const [activeTab, setActiveTab] = useState<'stats' | 'portfolio' | 'typography' | 'colors' | 'header' | 'footer' | 'media' | 'settings'>('stats');
   const [toastMessage, setToastMessage] = useState<string>('');
+
+  // Confirmation states (safe inline replacement for window.confirm in iframes)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteNavConfirmId, setDeleteNavConfirmId] = useState<string | null>(null);
+  const [resetConfirm, setResetConfirm] = useState<boolean>(false);
 
   // Media state
   const [logoPreview, setLogoPreview] = useState(agencyInfo.logoUrl);
@@ -112,11 +124,38 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
   const [newProjectOutcome, setNewProjectOutcome] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
   const [newProjectImage, setNewProjectImage] = useState<string>('');
-
-  if (!isOpen) return null;
-
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
+
+  // Synchronize local form inputs with latest Agency state whenever modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      setLogoPreview(agencyInfo.logoUrl);
+      setResponsablePreview(agencyInfo.responsablePhoto);
+      setProductImagePreview(agencyInfo.featuredProduct.image);
+      setProductLink(agencyInfo.featuredProduct.link);
+      setProductTitle(agencyInfo.featuredProduct.title);
+      setVideoTitle(videoPresentation.title);
+      setVideoSubtitle(videoPresentation.subtitle);
+      setVideoUrl(videoPresentation.videoUrl);
+      setWhatsappNum(agencyInfo.whatsappNumber);
+      setEmailAddr(agencyInfo.email);
+      setTempFontFamily(siteTypography.fontFamily);
+      setTempFontSize(siteTypography.fontSize);
+      setTempFontWeight(siteTypography.fontWeight);
+      setTempPrimary(siteColors.primary);
+      setTempDark(siteColors.primaryDark);
+      setTempAccent(siteColors.accent);
+      setTempBg(siteColors.bgColor);
+      setTempText(siteColors.textColor);
+      setTempBrandTitle(headerConfig.brandTitle);
+      setTempBrandHighlight(headerConfig.brandHighlight);
+      setTempBrandSubtitle(headerConfig.brandSubtitle);
+      setTempCopyright(footerConfig.copyrightText);
+    }
+  }, [isOpen, agencyInfo, videoPresentation, siteTypography, siteColors, headerConfig, footerConfig]);
+
+  if (!isOpen) return null;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -361,7 +400,7 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     : '0.0';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200">
       <div
         className="bg-white rounded-2xl max-w-5xl w-full border border-slate-200 shadow-2xl overflow-hidden relative max-h-[92vh] flex flex-col font-sans"
         onClick={(e) => e.stopPropagation()}
@@ -401,56 +440,82 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
                 logoutOwner();
                 onClose();
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-200 bg-red-900/50 hover:bg-red-800 rounded-lg transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-md cursor-pointer border border-red-500"
+              title="Se déconnecter de votre compte propriétaire"
             >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Déconnexion</span>
+              <LogOut className="w-4 h-4" />
+              <span>Me Déconnecter</span>
             </button>
 
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              className="p-2 text-slate-300 hover:text-white rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label="Fermer"
+              title="Fermer la console"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Tab Navigation (Scrollable horizontally) */}
-        <div className="bg-slate-100 border-b border-slate-200 px-4 sm:px-6 flex overflow-x-auto gap-1.5 py-2">
-          {[
-            { id: 'stats', label: '1. Statistiques', icon: BarChart3 },
-            { id: 'portfolio', label: '2. Sites & Vitrines', icon: Globe },
-            { id: 'typography', label: '3. Polices & Tailles', icon: Type },
-            { id: 'colors', label: '4. Couleurs', icon: Palette },
-            { id: 'header', label: '5. Entête (Onglets)', icon: Layout },
-            { id: 'footer', label: '6. Bas de Page', icon: Layout },
-            { id: 'media', label: '7. Médias & Vidéo', icon: Upload },
-            { id: 'settings', label: '8. Tarifs & Coordonnées', icon: DollarSign },
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-black rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-                  isActive
-                    ? 'bg-[#073587] text-white shadow-xs'
-                    : 'text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+        {/* Barre de Tâches Ultra-Visible pour mener chaque action */}
+        <div className="bg-slate-900 text-white p-3 sm:p-3.5 border-b border-slate-800">
+          <div className="text-[11px] font-black uppercase tracking-wider text-amber-400 mb-2.5 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-amber-400" />
+              <span>Barre de tâches du propriétaire (Cliquez pour mener chaque action) :</span>
+            </span>
+            <span className="text-slate-400 font-mono text-[10px] hidden sm:inline">8 actions disponibles</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+            {[
+              { id: 'stats', num: '1', label: 'Statistiques', desc: 'Visites & CTR', icon: BarChart3 },
+              { id: 'portfolio', num: '2', label: 'Sites & Vitrines', desc: 'Ajouter/Gérer', icon: Globe },
+              { id: 'typography', num: '3', label: 'Polices & Tailles', desc: 'Écritures', icon: Type },
+              { id: 'colors', num: '4', label: 'Couleurs', desc: 'Thème du site', icon: Palette },
+              { id: 'header', num: '5', label: 'Entête / Menu', desc: 'Onglets', icon: Layout },
+              { id: 'footer', num: '6', label: 'Bas de Page', desc: 'Pied de page', icon: Layout },
+              { id: 'media', num: '7', label: 'Médias & Vidéo', desc: 'Logo, Vidéo', icon: Upload },
+              { id: 'settings', num: '8', label: 'Tarifs & Contact', desc: 'Prix, WhatsApp', icon: DollarSign },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex flex-col items-center justify-center p-2.5 sm:p-2.5 rounded-xl font-bold transition-all cursor-pointer text-center relative border-2 ${
+                    isActive
+                      ? 'bg-amber-400 text-slate-950 border-white shadow-lg scale-102 font-black ring-2 ring-amber-300'
+                      : 'bg-slate-800/90 text-slate-200 border-slate-700/80 hover:bg-slate-750 hover:border-slate-500 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-1 mb-1">
+                    <span
+                      className={`w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                        isActive ? 'bg-slate-950 text-amber-300' : 'bg-slate-700 text-slate-300'
+                      }`}
+                    >
+                      {tab.num}
+                    </span>
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : 'text-amber-400'}`} />
+                  </div>
+                  <span className="text-[11px] sm:text-xs leading-tight font-black">{tab.label}</span>
+                  <span className={`text-[9px] font-medium mt-0.5 hidden sm:block ${isActive ? 'text-slate-900 font-bold' : 'text-slate-400'}`}>
+                    {tab.desc}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Tab Content Body */}
@@ -526,6 +591,52 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Simulation & Test Controls */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>Test & Simulation des Visites en Temps Réel</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500 font-bold mt-0.5">
+                    Testez le bon fonctionnement du compteur et observez la mise à jour immédiate des graphiques
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      simulateVisit();
+                      showToast("+1 Visiteur comptabilisé en direct !");
+                    }}
+                    className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-[#073587] border border-blue-200 rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+1 Visite (Test)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      trackClick('whatsapp');
+                      showToast("+1 Clic WhatsApp comptabilisé !");
+                    }}
+                    className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>+1 Clic WhatsApp</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      resetAnalytics();
+                      showToast("Statistiques réinitialisées pour une nouvelle période !");
+                    }}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black transition-colors cursor-pointer"
+                  >
+                    Réinitialiser
+                  </button>
                 </div>
               </div>
             </div>
@@ -736,18 +847,34 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => {
-                          if (confirm(`Confirmez-vous la suppression du site "${p.title}" de la page d'accueil ?`)) {
-                            deletePortfolioProject(p.id);
-                            showToast(`Site "${p.title}" supprimé.`);
-                          }
-                        }}
-                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors shrink-0 cursor-pointer"
-                        title="Supprimer ce site"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {deleteConfirmId === p.id ? (
+                        <div className="flex items-center gap-1.5 shrink-0 bg-red-50 p-1 rounded-lg border border-red-200">
+                          <button
+                            onClick={() => {
+                              deletePortfolioProject(p.id);
+                              setDeleteConfirmId(null);
+                              showToast(`Site "${p.title}" supprimé de la page d'accueil.`);
+                            }}
+                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-black cursor-pointer shadow-xs"
+                          >
+                            Confirmer
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[11px] font-bold cursor-pointer"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirmId(p.id)}
+                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors shrink-0 cursor-pointer"
+                          title="Supprimer ce site"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -782,7 +909,11 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       <button
                         key={f.label}
                         type="button"
-                        onClick={() => setTempFontFamily(f.value)}
+                        onClick={() => {
+                          setTempFontFamily(f.value);
+                          updateTypography({ fontFamily: f.value });
+                          showToast(`Police appliquée : ${f.label} !`);
+                        }}
                         className={`p-2.5 rounded-xl border text-xs font-black transition-all cursor-pointer ${
                           tempFontFamily.includes(f.label)
                             ? 'bg-[#073587] text-white border-[#073587]'
@@ -801,7 +932,10 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                   <input
                     type="text"
                     value={tempFontFamily}
-                    onChange={(e) => setTempFontFamily(e.target.value)}
+                    onChange={(e) => {
+                      setTempFontFamily(e.target.value);
+                      updateTypography({ fontFamily: e.target.value });
+                    }}
                     placeholder="Ex: Arial, Tahoma, Helvetica..."
                     className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 font-bold"
                   />
@@ -825,7 +959,11 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       max={26}
                       step={1}
                       value={tempFontSize}
-                      onChange={(e) => setTempFontSize(Number(e.target.value))}
+                      onChange={(e) => {
+                        const size = Number(e.target.value);
+                        setTempFontSize(size);
+                        updateTypography({ fontSize: size });
+                      }}
                       className="w-full accent-[#073587] cursor-pointer"
                     />
                   </div>
@@ -835,7 +973,11 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       <button
                         key={size}
                         type="button"
-                        onClick={() => setTempFontSize(size)}
+                        onClick={() => {
+                          setTempFontSize(size);
+                          updateTypography({ fontSize: size });
+                          showToast(`Taille appliquée : ${size}px !`);
+                        }}
                         className={`px-3 py-1 rounded-lg text-xs font-black border cursor-pointer ${
                           tempFontSize === size
                             ? 'bg-[#073587] text-white border-[#073587]'
@@ -864,7 +1006,11 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       <button
                         key={w.val}
                         type="button"
-                        onClick={() => setTempFontWeight(w.val)}
+                        onClick={() => {
+                          setTempFontWeight(w.val);
+                          updateTypography({ fontWeight: w.val });
+                          showToast(`Graisse appliquée : ${w.label} !`);
+                        }}
                         className={`px-3 py-1.5 rounded-lg text-xs font-black border cursor-pointer ${
                           tempFontWeight === w.val
                             ? 'bg-[#073587] text-white border-[#073587]'
@@ -952,13 +1098,19 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       <input
                         type="color"
                         value={tempPrimary}
-                        onChange={(e) => setTempPrimary(e.target.value)}
+                        onChange={(e) => {
+                          setTempPrimary(e.target.value);
+                          updateColors({ primary: e.target.value });
+                        }}
                         className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
                       />
                       <input
                         type="text"
                         value={tempPrimary}
-                        onChange={(e) => setTempPrimary(e.target.value)}
+                        onChange={(e) => {
+                          setTempPrimary(e.target.value);
+                          updateColors({ primary: e.target.value });
+                        }}
                         className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
                       />
                     </div>
@@ -973,13 +1125,19 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       <input
                         type="color"
                         value={tempDark}
-                        onChange={(e) => setTempDark(e.target.value)}
+                        onChange={(e) => {
+                          setTempDark(e.target.value);
+                          updateColors({ primaryDark: e.target.value });
+                        }}
                         className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
                       />
                       <input
                         type="text"
                         value={tempDark}
-                        onChange={(e) => setTempDark(e.target.value)}
+                        onChange={(e) => {
+                          setTempDark(e.target.value);
+                          updateColors({ primaryDark: e.target.value });
+                        }}
                         className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
                       />
                     </div>
@@ -994,13 +1152,19 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       <input
                         type="color"
                         value={tempAccent}
-                        onChange={(e) => setTempAccent(e.target.value)}
+                        onChange={(e) => {
+                          setTempAccent(e.target.value);
+                          updateColors({ accent: e.target.value });
+                        }}
                         className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
                       />
                       <input
                         type="text"
                         value={tempAccent}
-                        onChange={(e) => setTempAccent(e.target.value)}
+                        onChange={(e) => {
+                          setTempAccent(e.target.value);
+                          updateColors({ accent: e.target.value });
+                        }}
                         className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
                       />
                     </div>
@@ -1015,13 +1179,19 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       <input
                         type="color"
                         value={tempBg}
-                        onChange={(e) => setTempBg(e.target.value)}
+                        onChange={(e) => {
+                          setTempBg(e.target.value);
+                          updateColors({ bgColor: e.target.value });
+                        }}
                         className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
                       />
                       <input
                         type="text"
                         value={tempBg}
-                        onChange={(e) => setTempBg(e.target.value)}
+                        onChange={(e) => {
+                          setTempBg(e.target.value);
+                          updateColors({ bgColor: e.target.value });
+                        }}
                         className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
                       />
                     </div>
@@ -1036,13 +1206,19 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       <input
                         type="color"
                         value={tempText}
-                        onChange={(e) => setTempText(e.target.value)}
+                        onChange={(e) => {
+                          setTempText(e.target.value);
+                          updateColors({ textColor: e.target.value });
+                        }}
                         className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
                       />
                       <input
                         type="text"
                         value={tempText}
-                        onChange={(e) => setTempText(e.target.value)}
+                        onChange={(e) => {
+                          setTempText(e.target.value);
+                          updateColors({ textColor: e.target.value });
+                        }}
                         className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
                       />
                     </div>
@@ -1171,19 +1347,37 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                           <span className="text-[10px] font-mono text-slate-400">({link.href})</span>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Supprimer l'onglet "${link.label}" ?`)) {
-                              deleteNavLink(link.id);
-                              showToast(`Onglet "${link.label}" supprimé.`);
-                            }
-                          }}
-                          className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg cursor-pointer"
-                          title="Supprimer cet onglet"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {deleteNavConfirmId === link.id ? (
+                          <div className="flex items-center gap-1.5 shrink-0 bg-red-50 p-1 rounded-lg border border-red-200">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                deleteNavLink(link.id);
+                                setDeleteNavConfirmId(null);
+                                showToast(`Onglet "${link.label}" supprimé.`);
+                              }}
+                              className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-black cursor-pointer shadow-xs"
+                            >
+                              Confirmer
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteNavConfirmId(null)}
+                              className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold cursor-pointer"
+                            >
+                              Annuler
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteNavConfirmId(link.id)}
+                            className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg cursor-pointer"
+                            title="Supprimer cet onglet"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1330,7 +1524,11 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       type="file"
                       accept="image/*"
                       disabled={isUploading}
-                      onChange={(e) => handleImageUpload(e, setLogoPreview)}
+                      onChange={(e) => handleImageUpload(e, (dataUrl) => {
+                        setLogoPreview(dataUrl);
+                        updateAgencyInfo({ logoUrl: dataUrl });
+                        showToast("Nouveau logo appliqué sur tout le site !");
+                      })}
                       className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#073587] file:text-white cursor-pointer"
                     />
                   </div>
@@ -1355,7 +1553,11 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       type="file"
                       accept="image/*"
                       disabled={isUploading}
-                      onChange={(e) => handleImageUpload(e, setResponsablePreview)}
+                      onChange={(e) => handleImageUpload(e, (dataUrl) => {
+                        setResponsablePreview(dataUrl);
+                        updateAgencyInfo({ responsablePhoto: dataUrl });
+                        showToast("Photo du responsable mise à jour sur le site !");
+                      })}
                       className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white cursor-pointer"
                     />
                   </div>
@@ -1453,7 +1655,16 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                         type="file"
                         accept="image/*"
                         disabled={isUploading}
-                        onChange={(e) => handleImageUpload(e, setProductImagePreview)}
+                        onChange={(e) => handleImageUpload(e, (dataUrl) => {
+                          setProductImagePreview(dataUrl);
+                          updateAgencyInfo({
+                            featuredProduct: {
+                              ...agencyInfo.featuredProduct,
+                              image: dataUrl
+                            }
+                          });
+                          showToast("Photo du produit vedette mise à jour !");
+                        })}
                         className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-600 file:text-white cursor-pointer"
                       />
                     </div>
@@ -1464,7 +1675,15 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                       <input
                         type="url"
                         value={productLink}
-                        onChange={(e) => setProductLink(e.target.value)}
+                        onChange={(e) => {
+                          setProductLink(e.target.value);
+                          updateAgencyInfo({
+                            featuredProduct: {
+                              ...agencyInfo.featuredProduct,
+                              link: e.target.value
+                            }
+                          });
+                        }}
                         className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono font-bold text-[#073587]"
                       />
                     </div>
@@ -1564,26 +1783,101 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                 </div>
               </div>
 
-              {/* Reset Factory Settings */}
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
+              {/* Account & Disconnect Card */}
+              <div className="p-4 bg-slate-900 text-white rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-800">
                 <div>
-                  <h4 className="text-xs font-black text-red-900">Réinitialiser les paramètres d'usine</h4>
-                  <p className="text-[11px] text-red-700 font-bold">Rétablir les couleurs, polices et données par défaut</p>
+                  <h4 className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Session Propriétaire : kgmservices229@gmail.com</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-400 font-bold mt-0.5">
+                    Vous êtes actuellement connecté et avez tous les droits d'administration sur Africa Web.
+                  </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
-                    if (confirm("Réinitialiser toutes les données personnalisées ?")) {
-                      resetToDefaults();
-                    }
+                    logoutOwner();
+                    onClose();
                   }}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-md shrink-0 border border-red-500"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Réinitialiser</span>
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Me déconnecter</span>
                 </button>
+              </div>
+
+              {/* Reset Factory Settings */}
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-xs font-black text-red-900 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                    <span>Réinitialiser les paramètres d'usine</span>
+                  </h4>
+                  <p className="text-[11px] text-red-700 font-bold">Rétablir les couleurs, polices et données par défaut d'origine</p>
+                </div>
+                {resetConfirm ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        resetToDefaults();
+                      }}
+                      className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white text-xs font-black rounded-lg cursor-pointer shadow-xs"
+                    >
+                      Oui, réinitialiser tout
+                    </button>
+                    <button
+                      onClick={() => setResetConfirm(false)}
+                      className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-lg cursor-pointer"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setResetConfirm(true)}
+                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Réinitialiser</span>
+                  </button>
+                )}
               </div>
             </div>
           )}
+        </div>
+
+        {/* Barre Inférieure Permanente de Déconnexion & Statut */}
+        <div className="bg-slate-900 border-t border-slate-800 p-3 sm:p-4 px-4 sm:px-6 flex flex-wrap items-center justify-between gap-3 text-white text-xs shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-bold text-slate-300">
+              Espace Propriétaire Actif : <span className="text-amber-300 font-mono">kgmservices229@gmail.com</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                logoutOwner();
+                onClose();
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-md cursor-pointer border border-red-500"
+              title="Se déconnecter de votre compte propriétaire"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Se Déconnecter</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-black text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors cursor-pointer"
+            >
+              Fermer et voir le site
+            </button>
+          </div>
         </div>
       </div>
     </div>

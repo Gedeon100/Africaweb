@@ -338,8 +338,21 @@ export const TESTIMONIALS: TestimonialItem[] = [
   }
 ];
 
-export function getWhatsAppUrl(customText?: string): string {
+export function getWhatsAppUrl(customText?: string, phoneNumber?: string): string {
   const defaultText = "Bonjour Africa Web, je visite votre site internet et je souhaite des informations pour créer mon projet web.";
   const text = encodeURIComponent(customText || defaultText);
-  return `https://wa.me/${AGENCY_INFO.whatsappNumber}?text=${text}`;
+  let rawPhone = phoneNumber;
+  if (!rawPhone && typeof window !== 'undefined') {
+    try {
+      const savedInfo = localStorage.getItem('africa_web_cms_info');
+      if (savedInfo) {
+        const parsed = JSON.parse(savedInfo);
+        if (parsed?.whatsappNumber) rawPhone = parsed.whatsappNumber;
+      }
+    } catch {
+      // fallback
+    }
+  }
+  const cleanNumber = (rawPhone || AGENCY_INFO.whatsappNumber).replace(/[^0-9]/g, '');
+  return `https://wa.me/${cleanNumber}?text=${text}`;
 }
