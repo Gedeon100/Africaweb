@@ -397,13 +397,13 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
   const handleResetVideoToDemo = async () => {
     try {
       await resetVideoPresentation();
-      const defaultUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+      const defaultUrl = "/videos/africaweb-presentation.mp4";
       setVideoUrl(defaultUrl);
       setVideoTitle("Présentation Officielle d'Africa Web Agence Numérique");
       setVideoSubtitle("Découvrez nos formations et nos méthodes de création de vidéos IA, produits digitaux et sites web pro.");
-      setVideoDuration("02:45 min");
+      setVideoDuration("00:12 min");
       setVideoVisible(true);
-      showToast("Vidéo de démonstration officielle restaurée avec succès !");
+      showToast("Vidéo officielle du site restaurée avec succès !");
     } catch (err) {
       console.error(err);
       showToast("Erreur lors de la réinitialisation de la vidéo.");
@@ -1521,7 +1521,7 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                         className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl transition-colors cursor-pointer"
                       >
                         <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Restaurer la vidéo de démo officielle</span>
+                        <span>Restaurer la vidéo officielle du site (Garantie Netlify)</span>
                       </button>
                     </div>
                   </div>

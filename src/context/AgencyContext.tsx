@@ -180,12 +180,12 @@ const defaultAnalytics: AnalyticsData = {
   }
 };
 
-const defaultVideoPresentation: VideoPresentationData = {
+export const defaultVideoPresentation: VideoPresentationData = {
   title: "Présentation Officielle d'Africa Web Agence Numérique",
   subtitle: "Découvrez nos formations et nos méthodes de création de vidéos IA, produits digitaux et sites web pro.",
-  videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+  videoUrl: "/videos/africaweb-presentation.mp4",
   videoType: "upload",
-  duration: "02:45 min",
+  duration: "00:12 min",
   visible: true
 };
 
@@ -341,7 +341,19 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}video`);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (
+          !parsed.videoUrl ||
+          parsed.videoUrl.includes('BigBuckBunny.mp4') ||
+          parsed.videoUrl.includes('commondatastorage.googleapis.com')
+        ) {
+          return {
+            ...defaultVideoPresentation,
+            ...parsed,
+            videoUrl: '/videos/africaweb-presentation.mp4'
+          };
+        }
+        return parsed;
       } catch (e) {
         console.error(e);
       }
@@ -530,7 +542,12 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }));
         } else {
           setVideoPresentation(prev => {
-            if (prev.videoUrl && prev.videoUrl.startsWith('indexeddb:')) {
+            if (
+              !prev.videoUrl ||
+              prev.videoUrl.startsWith('indexeddb:') ||
+              prev.videoUrl.includes('BigBuckBunny.mp4') ||
+              prev.videoUrl.includes('commondatastorage.googleapis.com')
+            ) {
               return { ...prev, videoUrl: defaultVideoPresentation.videoUrl };
             }
             return prev;

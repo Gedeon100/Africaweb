@@ -403,10 +403,19 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({
                   onPlaying={() => {
                     setIsBuffering(false);
                     setIsPlaying(true);
+                    setHasError(false);
                   }}
                   onEnded={() => setIsPlaying(false)}
                   onError={(e) => {
                     console.error('HTML5 Video Error:', e);
+                    // If current video URL fails (e.g. broken external link or device-specific blob),
+                    // instantly fall back to the bundled local presentation video so Netlify visitors never see a broken video!
+                    if (videoSource.sourceUrl && videoSource.sourceUrl !== '/videos/africaweb-presentation.mp4') {
+                      console.warn('Switching to bundled video /videos/africaweb-presentation.mp4');
+                      updateVideoPresentation({ videoUrl: '/videos/africaweb-presentation.mp4' });
+                      setHasError(false);
+                      return;
+                    }
                     setHasError(true);
                     setErrorMessage(
                       "Impossible de lire cette vidéo directement. Le format est peut-être incompatible ou le lien est expiré."
