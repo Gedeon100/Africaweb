@@ -146,6 +146,8 @@ interface AgencyContextType {
   updatePortfolioProject: (id: string, project: Partial<ProjectItem>) => void;
   deletePortfolioProject: (id: string) => void;
   updateVideoPresentation: (data: Partial<VideoPresentationData>) => void;
+  deleteVideoPresentation: () => Promise<void>;
+  resetVideoPresentation: () => Promise<void>;
   updateTypography: (data: Partial<SiteTypography>) => void;
   updateColors: (data: Partial<SiteColors>) => void;
   updateHeaderConfig: (data: Partial<HeaderConfig>) => void;
@@ -526,6 +528,13 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             ...prev,
             videoUrl: activeBlobUrl || prev.videoUrl
           }));
+        } else {
+          setVideoPresentation(prev => {
+            if (prev.videoUrl && prev.videoUrl.startsWith('indexeddb:')) {
+              return { ...prev, videoUrl: defaultVideoPresentation.videoUrl };
+            }
+            return prev;
+          });
         }
       } catch (err) {
         console.warn('Could not restore video from IndexedDB', err);
@@ -657,6 +666,28 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setVideoPresentation(prev => ({ ...prev, ...data }));
   };
 
+  const deleteVideoPresentation = async () => {
+    try {
+      await deleteMediaBlob('presentation_video');
+    } catch (e) {
+      console.warn('Error deleting video blob:', e);
+    }
+    setVideoPresentation(prev => ({
+      ...prev,
+      videoUrl: '',
+      visible: false
+    }));
+  };
+
+  const resetVideoPresentation = async () => {
+    try {
+      await deleteMediaBlob('presentation_video');
+    } catch (e) {
+      console.warn('Error deleting video blob:', e);
+    }
+    setVideoPresentation(defaultVideoPresentation);
+  };
+
   const updateTypography = (data: Partial<SiteTypography>) => {
     setSiteTypography(prev => ({ ...prev, ...data }));
   };
@@ -785,6 +816,8 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatePortfolioProject,
         deletePortfolioProject,
         updateVideoPresentation,
+        deleteVideoPresentation,
+        resetVideoPresentation,
         updateTypography,
         updateColors,
         updateHeaderConfig,

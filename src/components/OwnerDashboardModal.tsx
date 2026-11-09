@@ -32,11 +32,15 @@ import {
   User,
   BookOpen,
   CheckCircle2,
-  Globe
+  Globe,
+  Monitor,
+  Play,
+  Pause,
+  RotateCcw
 } from 'lucide-react';
 import { useAgency, NavLinkItem } from '../context/AgencyContext';
 import { PricingPackage, PricingOption } from '../data/agencyData';
-import { compressImageFile, saveMediaBlob } from '../utils/mediaStorage';
+import { compressImageFile, saveMediaBlob, deleteMediaBlob } from '../utils/mediaStorage';
 
 interface OwnerDashboardModalProps {
   isOpen: boolean;
@@ -58,6 +62,38 @@ type TabKey =
   | 'stats'
   | 'security';
 
+// Parse video source for live preview in owner dashboard
+function parseVideoSource(url: string | undefined): {
+  kind: 'youtube' | 'vimeo' | 'html5' | 'empty';
+  embedUrl?: string;
+  sourceUrl?: string;
+} {
+  if (!url || !url.trim()) {
+    return { kind: 'empty' };
+  }
+  const cleanUrl = url.trim();
+
+  const ytMatch = cleanUrl.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/
+  );
+  if (ytMatch && ytMatch[1]) {
+    return {
+      kind: 'youtube',
+      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=0&rel=0&playsinline=1`
+    };
+  }
+
+  const vimeoMatch = cleanUrl.match(/(?:vimeo\.com\/)(\d+)/);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return {
+      kind: 'vimeo',
+      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?playsinline=1`
+    };
+  }
+
+  return { kind: 'html5', sourceUrl: cleanUrl };
+}
+
 export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen, onClose }) => {
   const {
     agencyInfo,
@@ -77,6 +113,8 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     addPricingPackage,
     deletePricingPackage,
     updateVideoPresentation,
+    deleteVideoPresentation,
+    resetVideoPresentation,
     updateTypography,
     updateColors,
     updateHeaderConfig,
@@ -104,6 +142,7 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
   const [deletePackageId, setDeletePackageId] = useState<string | null>(null);
   const [deleteNavConfirmId, setDeleteNavConfirmId] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState<boolean>(false);
+  const [deleteVideoConfirm, setDeleteVideoConfirm] = useState<boolean>(false);
 
   // Textes & Hero state
   const [heroHeadline, setHeroHeadline] = useState(agencyInfo.heroHeadline || '');
@@ -307,27 +346,29 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     }
   };
 
-  // Safe Video Upload with IndexedDB storage
+  // Safe Video Upload with IndexedDB storage (Android & PC compatible)
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('video/')) {
-      showToast("Veuillez sélectionner un fichier vidéo valide (MP4, WebM, etc.).");
+      showToast("Veuillez sélectionner un fichier vidéo valide (MP4, WebM, MOV, etc.).");
       return;
     }
 
     setIsUploading(true);
-    setUploadStatus("Enregistrement de la vidéo...");
+    setUploadStatus("Enregistrement du fichier vidéo en mémoire sécurisée...");
     try {
       await saveMediaBlob('presentation_video', file);
       const blobUrl = URL.createObjectURL(file);
       setVideoUrl(blobUrl);
+      setVideoVisible(true);
       updateVideoPresentation({
         videoUrl: blobUrl,
-        videoType: 'upload'
+        videoType: 'upload',
+        visible: true
       });
-      showToast("Vidéo officielle enregistrée avec succès !");
+      showToast("Nouvelle vidéo importée et enregistrée avec succès !");
     } catch (err) {
       console.error(err);
       showToast("Erreur lors du traitement de la vidéo.");
@@ -336,6 +377,51 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
       setUploadStatus('');
       e.target.value = '';
     }
+  };
+
+  // Delete Video Presentation
+  const handleDeleteVideo = async () => {
+    try {
+      await deleteVideoPresentation();
+      setVideoUrl('');
+      setVideoVisible(false);
+      setDeleteVideoConfirm(false);
+      showToast("Vidéo supprimée avec succès ! La section a été masquée.");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la suppression de la vidéo.");
+    }
+  };
+
+  // Reset Video to Default Demo
+  const handleResetVideoToDemo = async () => {
+    try {
+      await resetVideoPresentation();
+      const defaultUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+      setVideoUrl(defaultUrl);
+      setVideoTitle("Présentation Officielle d'Africa Web Agence Numérique");
+      setVideoSubtitle("Découvrez nos formations et nos méthodes de création de vidéos IA, produits digitaux et sites web pro.");
+      setVideoDuration("02:45 min");
+      setVideoVisible(true);
+      showToast("Vidéo de démonstration officielle restaurée avec succès !");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la réinitialisation de la vidéo.");
+    }
+  };
+
+  // Apply Video URL
+  const handleApplyVideoUrl = () => {
+    if (!videoUrl.trim()) {
+      showToast("Veuillez saisir une URL vidéo valide.");
+      return;
+    }
+    setVideoVisible(true);
+    updateVideoPresentation({
+      videoUrl: videoUrl.trim(),
+      visible: true
+    });
+    showToast("URL de la vidéo appliquée et enregistrée avec succès !");
   };
 
   // 1. Save Textes & Hero
@@ -1208,75 +1294,161 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
             </div>
           )}
 
-          {/* TAB 5: VIDÉO DE PRÉSENTATION */}
+          {/* TAB 5: VIDÉO DE PRÉSENTATION (ANDROID & ORDINATEUR) */}
           {activeTab === 'video' && (
             <div className="space-y-6">
-              <form onSubmit={handleSaveVideo} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
+                {/* Header & Status */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div>
-                    <h3 className="text-base font-black text-slate-900">
-                      Vidéo de Présentation Officielle
-                    </h3>
-                    <p className="text-xs text-slate-600 font-semibold">
-                      Personnalisez le titre, la durée, le fichier vidéo ou activez/désactivez la section.
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-black text-slate-900">
+                        Vidéo de Présentation (Android & Ordinateur)
+                      </h3>
+                      {videoUrl && videoVisible ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Active sur le site
+                        </span>
+                      ) : videoUrl && !videoVisible ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          <EyeOff className="w-3 h-3 text-amber-600" />
+                          Masquée aux visiteurs
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                          <AlertTriangle className="w-3 h-3 text-rose-600" />
+                          Aucune vidéo (supprimée)
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 font-medium mt-1">
+                      Remplacez, testez ou supprimez facilement la vidéo de présentation visible sur ordinateurs et téléphones Android.
                     </p>
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold">
+
+                  {/* Quick Visibility Toggle */}
+                  <label className="flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold transition-colors">
                     <input
                       type="checkbox"
                       checked={videoVisible}
-                      onChange={(e) => setVideoVisible(e.target.checked)}
-                      className="rounded text-[#073587]"
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setVideoVisible(checked);
+                        updateVideoPresentation({ visible: checked });
+                        showToast(checked ? "Section vidéo rendue visible sur le site !" : "Section vidéo masquée sur le site !");
+                      }}
+                      className="rounded text-[#073587] w-4 h-4 cursor-pointer"
                     />
                     <span>{videoVisible ? 'Section visible sur le site' : 'Section masquée'}</span>
                   </label>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
-                      Titre de la vidéo
-                    </label>
-                    <input
-                      type="text"
-                      value={videoTitle}
-                      onChange={(e) => setVideoTitle(e.target.value)}
-                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
-                    />
+                {/* Live Preview Player inside Owner Space */}
+                <div className="bg-slate-950 rounded-xl p-3.5 border border-slate-800 text-white space-y-2.5">
+                  <div className="flex items-center justify-between text-xs text-slate-300 px-1">
+                    <div className="flex items-center gap-2 font-mono text-[11px]">
+                      <span className={`w-2 h-2 rounded-full ${videoUrl ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                      <span>Aperçu de la vidéo active (Test de lecture)</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <Smartphone className="w-3.5 h-3.5" />
+                      <Monitor className="w-3.5 h-3.5" />
+                      <span>Compatible Android & PC</span>
+                    </div>
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
-                      Sous-titre descriptif
-                    </label>
-                    <input
-                      type="text"
-                      value={videoSubtitle}
-                      onChange={(e) => setVideoSubtitle(e.target.value)}
-                      className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
-                    />
+                  {/* Video Player Display */}
+                  <div className="relative aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center border border-slate-800">
+                    {(() => {
+                      const parsed = parseVideoSource(videoUrl);
+                      if (parsed.kind === 'youtube' && parsed.embedUrl) {
+                        return (
+                          <iframe
+                            src={parsed.embedUrl}
+                            title="Aperçu YouTube"
+                            className="w-full h-full border-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        );
+                      }
+                      if (parsed.kind === 'vimeo' && parsed.embedUrl) {
+                        return (
+                          <iframe
+                            src={parsed.embedUrl}
+                            title="Aperçu Vimeo"
+                            className="w-full h-full border-0"
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            allowFullScreen
+                          />
+                        );
+                      }
+                      if (parsed.kind === 'html5' && parsed.sourceUrl) {
+                        return (
+                          <video
+                            src={parsed.sourceUrl}
+                            controls
+                            playsInline
+                            // @ts-ignore
+                            webkit-playsinline="true"
+                            className="w-full h-full object-contain"
+                            preload="metadata"
+                          />
+                        );
+                      }
+                      return (
+                        <div className="text-center p-6 text-slate-400 space-y-2">
+                          <Video className="w-10 h-10 mx-auto text-slate-600 mb-1" />
+                          <p className="text-xs font-bold text-slate-300">Aucune vidéo active</p>
+                          <p className="text-[11px] text-slate-500">
+                            Sélectionnez une option ci-dessous pour téléverser un fichier MP4 ou saisir un lien
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
-                      Durée affichée
-                    </label>
-                    <input
-                      type="text"
-                      value={videoDuration}
-                      onChange={(e) => setVideoDuration(e.target.value)}
-                      placeholder="02:45 min"
-                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
-                    />
-                  </div>
+                  {/* Source details */}
+                  {videoUrl && (
+                    <div className="text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-2 px-1 pt-1 border-t border-slate-800">
+                      <span className="truncate max-w-md font-mono text-[10px] text-slate-300">
+                        Source : {videoUrl.startsWith('blob:') ? 'Fichier téléversé localement (IndexedDB)' : videoUrl}
+                      </span>
+                      <span className="text-amber-400 font-bold text-[10px]">
+                        {videoUrl.includes('youtube') || videoUrl.includes('youtu.be')
+                          ? 'Source : Vidéo YouTube'
+                          : videoUrl.includes('vimeo')
+                          ? 'Source : Vidéo Vimeo'
+                          : 'Source : Fichier direct MP4/WebM'}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
-                      Fichier vidéo depuis votre appareil
-                    </label>
-                    <label className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#073587] text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-[#05235c] transition-colors">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Importer un fichier MP4</span>
+                {/* Replacement and Deletion Action Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Card 1: Remplacer par un fichier depuis l'appareil */}
+                  <div className="p-4 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/60 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#073587] text-white flex items-center justify-center shrink-0">
+                        <Upload className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900">
+                          Remplacer par un fichier vidéo
+                        </h4>
+                        <p className="text-[11px] text-slate-600">
+                          Depuis votre téléphone Android ou ordinateur
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Sélectionnez un fichier <strong>MP4, WebM ou MOV</strong>. Il sera sauvegardé dans la mémoire de votre navigateur et jouable immédiatement.
+                    </p>
+                    <label className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-[#073587] hover:bg-[#05235c] text-white text-xs font-black rounded-xl cursor-pointer transition-colors shadow-xs">
+                      <Upload className="w-4 h-4" />
+                      <span>{videoUrl ? 'Remplacer par une nouvelle vidéo' : 'Importer une vidéo'}</span>
                       <input
                         type="file"
                         accept="video/*"
@@ -1286,29 +1458,164 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                     </label>
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
-                      Lien direct (URL vidéo)
-                    </label>
+                  {/* Card 2: Supprimer la vidéo ou Restaurer la démo */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center shrink-0">
+                        <Trash2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900">
+                          Supprimer ou Réinitialiser
+                        </h4>
+                        <p className="text-[11px] text-slate-600">
+                          Gestion de la présence de la vidéo
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Supprimez le fichier vidéo pour retirer la présentation, ou restaurez la vidéo officielle de test d'Africa Web.
+                    </p>
+
+                    <div className="flex flex-col gap-2 pt-1">
+                      {/* Delete video button with prompt */}
+                      {!deleteVideoConfirm ? (
+                        <button
+                          type="button"
+                          onClick={() => setDeleteVideoConfirm(true)}
+                          disabled={!videoUrl}
+                          className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-black text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 border border-rose-200 rounded-xl transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Supprimer la vidéo</span>
+                        </button>
+                      ) : (
+                        <div className="p-3 bg-rose-100/90 border border-rose-300 rounded-xl space-y-2 text-xs animate-in fade-in">
+                          <p className="text-rose-950 font-bold leading-tight">
+                            Êtes-vous sûr de vouloir supprimer cette vidéo ? La vidéo sera effacée et la section masquée aux visiteurs.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleDeleteVideo}
+                              className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-lg transition-colors cursor-pointer text-xs"
+                            >
+                              Oui, supprimer
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteVideoConfirm(false)}
+                              className="flex-1 py-1.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 font-bold rounded-lg transition-colors cursor-pointer text-xs"
+                            >
+                              Annuler
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Reset to demo */}
+                      <button
+                        type="button"
+                        onClick={handleResetVideoToDemo}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Restaurer la vidéo de démo officielle</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Option 3: Remplacer par URL web ou YouTube */}
+                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+                      <ExternalLink className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900">
+                        Remplacer par un lien direct ou une vidéo YouTube / Vimeo
+                      </h4>
+                      <p className="text-[11px] text-slate-600">
+                        Collez l'adresse web d'une vidéo YouTube (ex : <code>https://www.youtube.com/watch?v=...</code> ou <code>https://youtu.be/...</code>) ou un lien MP4 direct
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
                     <input
                       type="text"
                       value={videoUrl}
                       onChange={(e) => setVideoUrl(e.target.value)}
-                      className="w-full text-xs font-mono px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      placeholder="https://www.youtube.com/watch?v=... ou https://.../video.mp4"
+                      className="flex-grow text-xs font-mono px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:border-[#073587]"
                     />
+                    <button
+                      type="button"
+                      onClick={handleApplyVideoUrl}
+                      className="px-4 py-2 bg-[#073587] hover:bg-[#05235c] text-white text-xs font-black rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+                    >
+                      Appliquer ce lien
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-xl shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>Enregistrer la vidéo</span>
-                  </button>
-                </div>
-              </form>
+                {/* Paramètres Textes & Durée */}
+                <form onSubmit={handleSaveVideo} className="pt-3 border-t border-slate-100 space-y-4">
+                  <h4 className="text-xs font-black text-slate-800 uppercase">
+                    Titres et informations de la présentation
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                        Titre de la vidéo
+                      </label>
+                      <input
+                        type="text"
+                        value={videoTitle}
+                        onChange={(e) => setVideoTitle(e.target.value)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:border-[#073587]"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                        Sous-titre descriptif
+                      </label>
+                      <input
+                        type="text"
+                        value={videoSubtitle}
+                        onChange={(e) => setVideoSubtitle(e.target.value)}
+                        className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:border-[#073587]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                        Durée affichée (ex: 02:45 min)
+                      </label>
+                      <input
+                        type="text"
+                        value={videoDuration}
+                        onChange={(e) => setVideoDuration(e.target.value)}
+                        placeholder="02:45 min"
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:border-[#073587]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Enregistrer la configuration vidéo</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
 
