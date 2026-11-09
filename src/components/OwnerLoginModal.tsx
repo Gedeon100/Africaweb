@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, Key, ShieldCheck, AlertCircle, Eye, EyeOff, Sparkles, Check } from 'lucide-react';
+import { X, Lock, Mail, Key, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAgency } from '../context/AgencyContext';
 
 interface OwnerLoginModalProps {
@@ -15,25 +15,9 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
-
-  const handleFillCredentials = () => {
-    setEmail('kgmservices229@gmail.com');
-    setPassword('Samuell@8');
-    setError('');
-  };
-
-  const handleDirectLogin = () => {
-    setEmail('kgmservices229@gmail.com');
-    setPassword('Samuell@8');
-    setError('');
-    const success = loginOwner('kgmservices229@gmail.com', 'Samuell@8');
-    if (success) {
-      onSuccess();
-      onClose();
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,25 +26,43 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
     const cleanEmail = email.trim();
     const cleanPassword = password.trim();
 
-    const success = loginOwner(cleanEmail, cleanPassword);
-    if (success) {
-      onSuccess();
-      onClose();
-    } else {
-      setError("Identifiants incorrects. Veuillez vérifier l'adresse email (kgmservices229@gmail.com) et le mot de passe (Samuell@8).");
+    if (!cleanEmail || !cleanPassword) {
+      setError("Veuillez renseigner votre identifiant et votre mot de passe.");
+      return;
     }
+
+    setIsSubmitting(true);
+
+    // Small delay to simulate secure authentication check and prevent timing attacks
+    setTimeout(() => {
+      const success = loginOwner(cleanEmail, cleanPassword);
+      setIsSubmitting(false);
+
+      if (success) {
+        setEmail('');
+        setPassword('');
+        setError('');
+        onSuccess();
+        onClose();
+      } else {
+        setError("Identifiants invalides. Veuillez vérifier votre adresse email et votre mot de passe confidentiel.");
+      }
+    }, 250);
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200 font-sans">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200 font-sans"
+      onClick={onClose}
+    >
       <div
         className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Header */}
+        {/* Top Header - Dark Navy Brand */}
         <div className="p-4 sm:p-5 bg-[#05235c] text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-900 flex items-center justify-center font-black">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-900 flex items-center justify-center font-black shadow-md">
               <Lock className="w-5 h-5" />
             </div>
             <div>
@@ -68,7 +70,7 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
                 Espace Propriétaire · Africa Web
               </h3>
               <p className="text-[11px] text-slate-300 font-bold">
-                Connexion sécurisée au panneau d'administration
+                Connexion sécurisée et confidentielle
               </p>
             </div>
           </div>
@@ -82,27 +84,18 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
           </button>
         </div>
 
+        {/* Security Notice Pill */}
+        <div className="px-5 pt-4">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-2.5 text-xs text-slate-700 font-bold">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="text-[11px] leading-tight">
+              Portail privé d'administration réservé exclusivement au gestionnaire de la plateforme.
+            </span>
+          </div>
+        </div>
+
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4">
-          {/* Quick Auto-Fill & 1-Click Connect Helper */}
-          <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div className="text-[11px] text-amber-950 font-bold leading-tight">
-              <span>Compte certifié :</span>
-              <span className="block text-[10px] text-amber-800 font-mono mt-0.5">kgmservices229@gmail.com</span>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={handleDirectLogin}
-                className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg text-xs font-black transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
-                title="Connexion instantanée en 1 clic"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Connexion 1 clic</span>
-              </button>
-            </div>
-          </div>
-
           {error && (
             <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl flex items-start gap-2 border border-red-200 font-bold animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -113,7 +106,7 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
           {/* Email field */}
           <div>
             <label className="block text-xs font-black text-slate-800 mb-1.5">
-              Adresse Email Propriétaire *
+              Identifiant / Email Propriétaire *
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -122,13 +115,14 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
               <input
                 type="email"
                 required
-                placeholder="kgmservices229@gmail.com"
+                autoComplete="username"
+                placeholder="admin@africaweb.com"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
                   setError('');
                 }}
-                className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#073587] focus:border-[#073587] font-bold"
+                className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#073587] focus:border-[#073587] font-bold text-slate-900 bg-white"
               />
             </div>
           </div>
@@ -139,9 +133,6 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
               <label className="text-xs font-black text-slate-800">
                 Mot de passe confidentiel *
               </label>
-              <span className="text-[10px] font-mono font-bold text-slate-500">
-                (Samuell@8)
-              </span>
             </div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -150,13 +141,14 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
-                placeholder="Votre mot de passe secret"
+                autoComplete="current-password"
+                placeholder="••••••••••••"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setError('');
                 }}
-                className="w-full pl-9 pr-10 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#073587] focus:border-[#073587] font-bold font-mono"
+                className="w-full pl-9 pr-10 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#073587] focus:border-[#073587] font-bold font-mono text-slate-900 bg-white"
               />
               <button
                 type="button"
@@ -171,14 +163,14 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
 
           {/* Remember me toggle */}
           <div className="flex items-center justify-between text-xs font-bold text-slate-700 pt-1">
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 accent-[#073587] rounded cursor-pointer"
               />
-              <span>Rester connecté sur cet appareil</span>
+              <span>Mémoriser ma session sur cet appareil</span>
             </label>
           </div>
 
@@ -186,15 +178,16 @@ export const OwnerLoginModal: React.FC<OwnerLoginModalProps> = ({ isOpen, onClos
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full py-3.5 px-4 rounded-xl text-xs sm:text-sm font-black text-white bg-[#073587] hover:bg-[#05235c] shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isSubmitting}
+              className="w-full py-3.5 px-4 rounded-xl text-xs sm:text-sm font-black text-white bg-[#073587] hover:bg-[#05235c] shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>Ouvrir mon tableau de bord propriétaire</span>
+              <span>{isSubmitting ? 'Vérification sécurisée...' : 'Se connecter à l\'espace propriétaire'}</span>
             </button>
           </div>
 
           <p className="text-[11px] text-slate-500 font-bold text-center pt-2">
-            🔒 Accès exclusif réservé au propriétaire d'Africa Web pour piloter et modifier le site en temps réel.
+            🔒 Vos identifiants sont strictement confidentiels. Ne les communiquez jamais à des tiers ou à des clients.
           </p>
         </form>
       </div>

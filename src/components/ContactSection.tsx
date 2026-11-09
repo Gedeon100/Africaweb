@@ -14,7 +14,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ initialPlan }) =
     fullName: '',
     email: '',
     phone: '',
-    projectType: initialPlan || 'vitrine',
+    projectType: initialPlan || 'video-ia',
     message: ''
   });
 

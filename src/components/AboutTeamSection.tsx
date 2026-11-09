@@ -27,10 +27,10 @@ export const AboutTeamSection: React.FC<AboutTeamSectionProps> = ({ onOpenContac
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-bold text-slate-900">
-                      Direction & Service Clientèle
+                      {agencyInfo.responsableName || "Samuel G."} · {agencyInfo.responsableRole || "Direction & Service Clientèle"}
                     </h4>
                     <p className="text-[11px] text-slate-600 font-semibold">
-                      Africa Web Agence Numérique
+                      {agencyInfo.name}
                     </p>
                   </div>
                   <span className="w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-emerald-100" title="En ligne pour vous répondre" />
@@ -39,24 +39,24 @@ export const AboutTeamSection: React.FC<AboutTeamSectionProps> = ({ onOpenContac
             </div>
 
             <p className="mt-3 text-xs text-slate-600 text-center font-bold">
-              Votre interlocuteur dédié pour le cadrage et le suivi de vos projets
+              {agencyInfo.responsableBio || "Votre interlocuteur dédié pour le cadrage et le suivi de vos formations et projets numériques."}
             </p>
           </div>
 
           {/* Right Column: Mission, Values & Commitment */}
           <div className="lg:col-span-7 space-y-5">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#073587]">
-              <span>À Propos d'Africa Web</span>
+              <span>À Propos de {agencyInfo.name}</span>
               <span aria-hidden="true" className="text-amber-500">·</span>
               <span>Vision Panafricaine</span>
             </div>
 
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              Un partenaire humain et dévoué à votre réussite en ligne.
+              {agencyInfo.aboutTitle || "Un partenaire humain et dévoué à votre réussite en ligne."}
             </h2>
 
             <p className="text-base text-slate-700 leading-relaxed font-semibold">
-              Chez <strong>{agencyInfo.name}</strong>, nous croyons qu'une entreprise africaine ne doit plus dépendre d'outils complexes ou inadaptés à notre réalité locale. Que vous ayez besoin d'un site vitrine pour asseoir votre réputation, d'une boutique Shopify intégrant les paiements Mobile Money locaux, ou d'une plateforme webinaire complète pour héberger vos formations, nous mettons notre savoir-faire au service de votre croissance.
+              {agencyInfo.aboutText || `Chez ${agencyInfo.name}, nous croyons qu'une entreprise africaine ne doit plus dépendre d'outils complexes ou inadaptés à notre réalité locale. Que vous ayez besoin de maîtriser la vidéo publicitaire par IA, de concevoir des produits digitaux ou de créer votre propre site web professionnel avec ou sans hébergement, nous mettons notre savoir-faire au service de votre croissance.`}
             </p>
 
             {/* Core Values Bento Grid */}

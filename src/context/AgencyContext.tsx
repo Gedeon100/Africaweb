@@ -33,12 +33,29 @@ export interface VideoPresentationData {
   videoType: 'upload' | 'embed';
   posterUrl?: string;
   duration?: string;
+  visible?: boolean;
 }
 
 export interface SiteTypography {
+  // Corps du texte
   fontFamily: string;
   fontSize: number; // in pixels (e.g. 14, 16, 18, 20, 22)
   fontWeight: string; // e.g. "400", "600", "700", "800", "900"
+
+  // Titres principaux (H1, H2, H3)
+  titleFontFamily?: string;
+  titleFontSize?: number; // e.g. 26 to 52
+  titleFontWeight?: string;
+
+  // Sous-titres
+  subtitleFontFamily?: string;
+  subtitleFontSize?: number; // e.g. 13 to 22
+  subtitleFontWeight?: string;
+
+  // Prix & Tarifs
+  priceFontFamily?: string; // default Arial
+  priceFontSize?: number; // e.g. 22 to 44
+  priceFontWeight?: string; // default 900
 }
 
 export interface SiteColors {
@@ -83,6 +100,14 @@ export interface AgencyState {
   whatsappDisplay: string;
   logoUrl: string;
   responsablePhoto: string;
+  heroHeadline?: string;
+  heroSubtitle?: string;
+  heroKicker?: string;
+  aboutTitle?: string;
+  aboutText?: string;
+  responsableName?: string;
+  responsableRole?: string;
+  responsableBio?: string;
   featuredProduct: {
     title: string;
     subtitle: string;
@@ -90,6 +115,7 @@ export interface AgencyState {
     image: string;
     link: string;
     highlights: string[];
+    visible?: boolean;
   };
 }
 
@@ -106,12 +132,16 @@ interface AgencyContextType {
   headerConfig: HeaderConfig;
   footerConfig: FooterConfig;
   isOwnerLoggedIn: boolean;
+  ownerEmail: string;
 
   // Actions
   loginOwner: (email: string, pass: string) => boolean;
   logoutOwner: () => void;
+  updateOwnerCredentials: (newEmail: string, newPassword?: string) => { success: boolean; error?: string };
   updateAgencyInfo: (data: Partial<AgencyState>) => void;
   updatePricingPackage: (id: string, data: Partial<PricingPackage>) => void;
+  addPricingPackage: (pkg: PricingPackage) => void;
+  deletePricingPackage: (id: string) => void;
   addPortfolioProject: (project: ProjectItem) => void;
   updatePortfolioProject: (id: string, project: Partial<ProjectItem>) => void;
   deletePortfolioProject: (id: string) => void;
@@ -150,16 +180,29 @@ const defaultAnalytics: AnalyticsData = {
 
 const defaultVideoPresentation: VideoPresentationData = {
   title: "Présentation Officielle d'Africa Web Agence Numérique",
-  subtitle: "Découvrez nos méthodes de conception de sites vitrines, boutiques e-commerce et tunnels webinaires performants.",
+  subtitle: "Découvrez nos formations et nos méthodes de création de vidéos IA, produits digitaux et sites web pro.",
   videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
   videoType: "upload",
-  duration: "02:45 min"
+  duration: "02:45 min",
+  visible: true
 };
 
 const defaultTypography: SiteTypography = {
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: 18,
-  fontWeight: "700"
+  fontWeight: "700",
+
+  titleFontFamily: "Arial, Helvetica, sans-serif",
+  titleFontSize: 36,
+  titleFontWeight: "900",
+
+  subtitleFontFamily: "Arial, Helvetica, sans-serif",
+  subtitleFontSize: 16,
+  subtitleFontWeight: "600",
+
+  priceFontFamily: "Arial, Helvetica, sans-serif",
+  priceFontSize: 32,
+  priceFontWeight: "900"
 };
 
 const defaultColors: SiteColors = {
@@ -171,7 +214,7 @@ const defaultColors: SiteColors = {
 };
 
 const defaultHeaderConfig: HeaderConfig = {
-  showTopBar: true,
+  showTopBar: false,
   showWhatsAppBtn: true,
   showOrderBtn: true,
   brandTitle: "Africa",
@@ -179,10 +222,10 @@ const defaultHeaderConfig: HeaderConfig = {
   brandSubtitle: "Agence Numérique",
   navLinks: [
     { id: "hero", label: "Accueil", href: "#hero", visible: true },
-    { id: "tarifs", label: "Tarifs", href: "#tarifs", visible: true },
-    { id: "realisations", label: "Réalisations", href: "#realisations", visible: true },
+    { id: "tarifs", label: "Formations & Tarifs", href: "#tarifs", visible: true },
     { id: "video", label: "Vidéo", href: "#presentation-video", visible: true },
     { id: "produit", label: "Produit Vedette", href: "#produit-vedette", visible: true },
+    { id: "apropos", label: "À Propos", href: "#apropos", visible: true },
     { id: "temoignages", label: "Témoignages", href: "#temoignages", visible: true },
     { id: "contact", label: "Contact", href: "#contact", visible: true }
   ]
@@ -201,10 +244,33 @@ const AgencyContext = createContext<AgencyContextType | undefined>(undefined);
 export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 1. Agency Info
   const [agencyInfo, setAgencyInfo] = useState<AgencyState>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}info`);
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}info_v2`) || localStorage.getItem(`${STORAGE_KEY_PREFIX}info`);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          name: parsed.name || AGENCY_INFO.name,
+          slogan: parsed.slogan || AGENCY_INFO.slogan,
+          motto: parsed.motto || AGENCY_INFO.motto,
+          email: parsed.email || AGENCY_INFO.email,
+          whatsappNumber: parsed.whatsappNumber || AGENCY_INFO.whatsappNumber,
+          whatsappDisplay: parsed.whatsappDisplay || AGENCY_INFO.whatsappDisplay,
+          logoUrl: parsed.logoUrl || AGENCY_INFO.logoUrl,
+          responsablePhoto: parsed.responsablePhoto || AGENCY_INFO.responsablePhoto,
+          heroHeadline: parsed.heroHeadline || "Maîtrisez la création de vidéos IA, produits digitaux, affiches et sites web pro.",
+          heroSubtitle: parsed.heroSubtitle || "Africa Web vous forme aux compétences les plus rentables du marché : Vidéos publicitaires avec Google Flow & Arena IA, Produits digitaux, Images publicitaires et Création de sites web pro sans code.",
+          heroKicker: parsed.heroKicker || "Académie & Agence Numérique · Formations Pratiques & Création Web",
+          aboutTitle: parsed.aboutTitle || "Un partenaire humain et dévoué à votre réussite en ligne.",
+          aboutText: parsed.aboutText || "Chez Africa Web, nous croyons qu'une entreprise africaine ne doit plus dépendre d'outils complexes ou inadaptés à notre réalité locale. Que vous ayez besoin de maîtriser la vidéo publicitaire par IA, de créer des produits digitaux ou de concevoir des sites web pro avec ou sans hébergement, nous mettons notre savoir-faire au service de votre croissance.",
+          responsableName: parsed.responsableName || "Samuel G.",
+          responsableRole: parsed.responsableRole || "Direction & Service Clientèle",
+          responsableBio: parsed.responsableBio || "Votre interlocuteur dédié pour le cadrage et le suivi de vos formations et projets numériques.",
+          featuredProduct: {
+            ...AGENCY_INFO.featuredProduct,
+            ...(parsed.featuredProduct || {}),
+            visible: parsed.featuredProduct?.visible !== false
+          }
+        };
       } catch (e) {
         console.error(e);
       }
@@ -218,17 +284,28 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       whatsappDisplay: AGENCY_INFO.whatsappDisplay,
       logoUrl: AGENCY_INFO.logoUrl,
       responsablePhoto: AGENCY_INFO.responsablePhoto,
-      featuredProduct: AGENCY_INFO.featuredProduct
+      heroHeadline: "Maîtrisez la création de vidéos IA, produits digitaux, affiches et sites web pro.",
+      heroSubtitle: "Africa Web vous forme aux compétences les plus rentables du marché : Vidéos publicitaires avec Google Flow & Arena IA, Produits digitaux, Images publicitaires et Création de sites web pro sans code.",
+      heroKicker: "Académie & Agence Numérique · Formations Pratiques & Création Web",
+      aboutTitle: "Un partenaire humain et dévoué à votre réussite en ligne.",
+      aboutText: "Chez Africa Web, nous croyons qu'une entreprise africaine ne doit plus dépendre d'outils complexes ou inadaptés à notre réalité locale. Que vous ayez besoin de maîtriser la vidéo publicitaire par IA, de créer des produits digitaux ou de concevoir des sites web pro avec ou sans hébergement, nous mettons notre savoir-faire au service de votre croissance.",
+      responsableName: "Samuel G.",
+      responsableRole: "Direction & Service Clientèle",
+      responsableBio: "Votre interlocuteur dédié pour le cadrage et le suivi de vos formations et projets numériques.",
+      featuredProduct: {
+        ...AGENCY_INFO.featuredProduct,
+        visible: true
+      }
     };
   });
 
-  // 2. Pricing Packages
+  // 2. Pricing Packages (5 Formations Officielles)
   const [pricingPackages, setPricingPackages] = useState<PricingPackage[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}pricing`);
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}pricing_v4`);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (!saved.includes('Hostinger')) {
+        if (Array.isArray(parsed) && parsed.length >= 5) {
           return parsed;
         }
       } catch (e) {
@@ -283,12 +360,29 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return defaultAnalytics;
   });
 
-  // 7. Typography (Font Family, Font Size, Font Weight)
+  // 7. Typography (Textes généraux, Titres, Sous-titres, Prix)
   const [siteTypography, setSiteTypography] = useState<SiteTypography>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}typography`);
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}typography_v2`) || localStorage.getItem(`${STORAGE_KEY_PREFIX}typography`);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          fontFamily: parsed.fontFamily || "Arial, Helvetica, sans-serif",
+          fontSize: typeof parsed.fontSize === 'number' ? parsed.fontSize : 18,
+          fontWeight: parsed.fontWeight || "700",
+
+          titleFontFamily: parsed.titleFontFamily || parsed.fontFamily || "Arial, Helvetica, sans-serif",
+          titleFontSize: typeof parsed.titleFontSize === 'number' ? parsed.titleFontSize : 36,
+          titleFontWeight: parsed.titleFontWeight || "900",
+
+          subtitleFontFamily: parsed.subtitleFontFamily || parsed.fontFamily || "Arial, Helvetica, sans-serif",
+          subtitleFontSize: typeof parsed.subtitleFontSize === 'number' ? parsed.subtitleFontSize : 16,
+          subtitleFontWeight: parsed.subtitleFontWeight || "600",
+
+          priceFontFamily: parsed.priceFontFamily || "Arial, Helvetica, sans-serif",
+          priceFontSize: typeof parsed.priceFontSize === 'number' ? parsed.priceFontSize : 32,
+          priceFontWeight: parsed.priceFontWeight || "900"
+        };
       } catch (e) {
         console.error(e);
       }
@@ -335,7 +429,25 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return defaultFooterConfig;
   });
 
-  // 11. Owner Authentication
+  // 11. Owner Authentication & Credentials (Secure)
+  const [ownerCredentials, setOwnerCredentials] = useState<{ email: string; password: string }>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}owner_credentials`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.email === 'string' && typeof parsed.password === 'string') {
+          return parsed;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return {
+      email: 'kgmservices229@gmail.com',
+      password: 'Samuell@8'
+    };
+  });
+
   const [isOwnerLoggedIn, setIsOwnerLoggedIn] = useState<boolean>(() => {
     return (
       localStorage.getItem(`${STORAGE_KEY_PREFIX}owner_auth`) === 'true' ||
@@ -377,11 +489,29 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     document.body.style.backgroundColor = siteColors.bgColor;
     document.body.style.color = siteColors.textColor;
 
+    // Brand Colors
     root.style.setProperty('--color-brand-primary', siteColors.primary);
     root.style.setProperty('--color-brand-dark', siteColors.primaryDark);
     root.style.setProperty('--color-brand-accent', siteColors.accent);
     root.style.setProperty('--color-brand-bg', siteColors.bgColor);
     root.style.setProperty('--color-brand-text', siteColors.textColor);
+
+    // Advanced Typography Variables
+    root.style.setProperty('--font-body', siteTypography.fontFamily);
+    root.style.setProperty('--font-size-body', `${siteTypography.fontSize}px`);
+    root.style.setProperty('--font-weight-body', siteTypography.fontWeight);
+
+    root.style.setProperty('--font-title', siteTypography.titleFontFamily || siteTypography.fontFamily);
+    root.style.setProperty('--font-size-title', `${siteTypography.titleFontSize || 36}px`);
+    root.style.setProperty('--font-weight-title', siteTypography.titleFontWeight || '900');
+
+    root.style.setProperty('--font-subtitle', siteTypography.subtitleFontFamily || siteTypography.fontFamily);
+    root.style.setProperty('--font-size-subtitle', `${siteTypography.subtitleFontSize || 16}px`);
+    root.style.setProperty('--font-weight-subtitle', siteTypography.subtitleFontWeight || '600');
+
+    root.style.setProperty('--font-price', siteTypography.priceFontFamily || 'Arial, Helvetica, sans-serif');
+    root.style.setProperty('--font-size-price', `${siteTypography.priceFontSize || 32}px`);
+    root.style.setProperty('--font-weight-price', siteTypography.priceFontWeight || '900');
   }, [siteTypography, siteColors]);
 
   // Restore video from IndexedDB if previously uploaded
@@ -412,11 +542,13 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Persist to safe storage (with quota protection to ensure site never freezes or crashes)
   useEffect(() => {
+    safeLocalStorageSet(`${STORAGE_KEY_PREFIX}info_v2`, JSON.stringify(agencyInfo));
     safeLocalStorageSet(`${STORAGE_KEY_PREFIX}info`, JSON.stringify(agencyInfo));
   }, [agencyInfo]);
 
   useEffect(() => {
-    safeLocalStorageSet(`${STORAGE_KEY_PREFIX}pricing`, JSON.stringify(pricingPackages));
+    safeLocalStorageSet(`${STORAGE_KEY_PREFIX}pricing_v4`, JSON.stringify(pricingPackages));
+    safeLocalStorageSet(`${STORAGE_KEY_PREFIX}pricing_v3`, JSON.stringify(pricingPackages));
   }, [pricingPackages]);
 
   useEffect(() => {
@@ -439,6 +571,7 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [analytics]);
 
   useEffect(() => {
+    safeLocalStorageSet(`${STORAGE_KEY_PREFIX}typography_v2`, JSON.stringify(siteTypography));
     safeLocalStorageSet(`${STORAGE_KEY_PREFIX}typography`, JSON.stringify(siteTypography));
   }, [siteTypography]);
 
@@ -454,17 +587,32 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     safeLocalStorageSet(`${STORAGE_KEY_PREFIX}footer`, JSON.stringify(footerConfig));
   }, [footerConfig]);
 
-  // Auth handler
+  // Auth handler (Confidential credentials verification)
   const loginOwner = (email: string, pass: string): boolean => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = pass.trim();
-    if (cleanEmail === 'kgmservices229@gmail.com' && cleanPass === 'Samuell@8') {
+    if (cleanEmail === ownerCredentials.email.trim().toLowerCase() && cleanPass === ownerCredentials.password) {
       setIsOwnerLoggedIn(true);
       localStorage.setItem(`${STORAGE_KEY_PREFIX}owner_auth`, 'true');
       sessionStorage.setItem(`${STORAGE_KEY_PREFIX}owner_auth`, 'true');
       return true;
     }
     return false;
+  };
+
+  const updateOwnerCredentials = (newEmail: string, newPassword?: string): { success: boolean; error?: string } => {
+    const cleanEmail = newEmail.trim().toLowerCase();
+    const cleanPass = newPassword && newPassword.trim() ? newPassword.trim() : ownerCredentials.password;
+    if (!cleanEmail || !cleanEmail.includes('@') || cleanEmail.length < 5) {
+      return { success: false, error: "Veuillez entrer une adresse email valide pour le compte propriétaire." };
+    }
+    if (newPassword && cleanPass.length < 6) {
+      return { success: false, error: "Le mot de passe doit comporter au moins 6 caractères pour assurer votre sécurité." };
+    }
+    const updated = { email: cleanEmail, password: cleanPass };
+    setOwnerCredentials(updated);
+    safeLocalStorageSet(`${STORAGE_KEY_PREFIX}owner_credentials`, JSON.stringify(updated));
+    return { success: true };
   };
 
   const logoutOwner = () => {
@@ -481,6 +629,14 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setPricingPackages(prev =>
       prev.map(p => (p.id === id ? { ...p, ...data } : p))
     );
+  };
+
+  const addPricingPackage = (pkg: PricingPackage) => {
+    setPricingPackages(prev => [...prev, pkg]);
+  };
+
+  const deletePricingPackage = (id: string) => {
+    setPricingPackages(prev => prev.filter(p => p.id !== id));
   };
 
   const addPortfolioProject = (project: ProjectItem) => {
@@ -617,10 +773,14 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         headerConfig,
         footerConfig,
         isOwnerLoggedIn,
+        ownerEmail: ownerCredentials.email,
         loginOwner,
         logoutOwner,
+        updateOwnerCredentials,
         updateAgencyInfo,
         updatePricingPackage,
+        addPricingPackage,
+        deletePricingPackage,
         addPortfolioProject,
         updatePortfolioProject,
         deletePortfolioProject,

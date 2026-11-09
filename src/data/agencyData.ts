@@ -1,14 +1,28 @@
+export interface PricingOption {
+  id: string;
+  label: string;
+  name?: string;
+  price: string;
+  note?: string;
+  whatsappMessage?: string;
+}
+
 export interface PricingPackage {
   id: string;
   name: string;
   price: string;
   priceNote?: string;
+  badge?: string;
   description: string;
   delay: string;
   popular?: boolean;
   hosting: string;
+  tools?: string[];
   features: string[];
+  options?: PricingOption[];
   whatsappMessage: string;
+  buttonText?: string;
+  period?: string;
 }
 
 export interface ProjectItem {
@@ -78,65 +92,125 @@ export const AGENCY_INFO = {
 
 export const PRICING_PACKAGES: PricingPackage[] = [
   {
-    id: "vitrine",
-    name: "Site Internet Vitrine",
-    price: "50 000 FCFA",
-    priceNote: "Pack clé en main pour entreprises",
-    description: "Idéal pour les entreprises, PME, prestataires et artisans qui souhaitent établir une présence en ligne crédible et capter de nouveaux clients.",
-    delay: "Livraison en 3 à 5 jours",
+    id: "video-ia",
+    name: "1. Formation Vidéo Publicitaire & Pro avec l'IA",
+    price: "10 000 FCFA",
+    priceNote: "Google Flow, Arena IA & Studio de Création",
+    description: "Apprenez à concevoir des vidéos publicitaires captivantes et des spots professionnels à fort taux de conversion grâce à Google Flow et Arena IA.",
+    delay: "Accès direct + Pratique sur cas réels",
     popular: false,
-    hosting: "Nom de domaine dédié & certificat SSL sécurisé inclus",
+    hosting: "Google Flow · Arena IA · Voix Off & Scénarios IA",
     features: [
-      "Hébergement dédié haute performance avec panneau de gestion remis au client",
-      "Design moderne, sur-mesure & 100% responsive (mobile Android, tablette, PC)",
-      "Jusqu'à 5 pages professionnelles (Accueil, Services, À Propos, Portfolio, Contact)",
-      "Boutons d'appel direct & formulaire relié à WhatsApp et Email",
-      "Intégration Google Maps pour localiser votre établissement",
-      "Optimisation SEO pour être trouvé sur Google",
-      "Certificat de sécurité SSL et adresses emails professionnelles",
-      "Support & accompagnement personnalisé à la prise en main"
+      "Maîtrise complète de Google Flow pour la génération vidéo cinématique",
+      "Génération et animation de scènes publicitaires avec Arena IA",
+      "Écriture de scripts et prompts persuasifs adaptés au marché africain",
+      "Création de voix off réalistes avec intonations humaines professionnelles",
+      "Montage dynamique, synchronisation audio et sous-titres animés viraux",
+      "Formats adaptés pour TikTok, Instagram Reels, Facebook Ads & YouTube",
+      "Bibliothèque de prompts vidéo exclusifs pour booster vos conversions",
+      "Support d'aide et réponses directes à vos questions sur WhatsApp"
     ],
-    whatsappMessage: "Bonjour Africa Web, je souhaite commander la création d'un Site Internet Vitrine à 50 000 FCFA."
+    whatsappMessage: "Bonjour Africa Web, je souhaite m'inscrire à la Formation en création de vidéo publicitaire et professionnelle avec l'IA (Google Flow, Arena IA) à 10 000 FCFA."
   },
   {
-    id: "ecommerce",
-    name: "Boutique E-commerce & Marketplace",
-    price: "100 000 FCFA",
-    priceNote: "Tarif à débattre selon le catalogue",
-    description: "Conçu pour les commerçants, créateurs de mode, cosmétique et revendeurs souhaitant vendre 24h/24 en Afrique et à l'international.",
-    delay: "Livraison en 5 à 7 jours",
+    id: "produit-digital",
+    name: "2. Formation Produit Digital Professionnel",
+    price: "15 000 FCFA",
+    priceNote: "De l'idée à la vente automatisée en Afrique",
+    description: "Concevez vos propres produits numériques rentables (e-books, templates, guides, formations) et mettez en place un système de vente automatique 24h/24.",
+    delay: "Programme complet + Tunnels de vente offerts",
     popular: true,
-    hosting: "Boutique Shopify ou Cloud e-commerce optimisé",
+    hosting: "Packaging Digital · Tunnels & Mobile Money",
     features: [
-      "Boutique Shopify ou plateforme e-commerce optimisée haute vitesse",
-      "Intégration Mobile Money (MTN, Moov, Orange, Wave) & Cartes bancaires",
-      "Catalogue produits illimité avec gestion facile des variantes et stocks",
-      "Panier d'achat fluide et calcul automatique des frais de livraison",
-      "Système de commande directe par WhatsApp pour les clients locaux",
-      "Tableau de bord de suivi des ventes et des clients",
-      "Session de formation vidéo offerte pour gérer votre boutique en toute autonomie"
+      "Méthode pour identifier des idées de produits digitaux à forte demande",
+      "Rédaction et mise en page d'e-books et guides pratiques professionnels",
+      "Création de mockups 3D et packagings numériques irrésistibles",
+      "Mise en place de tunnels de vente automatisés (capture, commande, remerciement)",
+      "Intégration des paiements Mobile Money (MTN, Moov, Wave, Orange) & Cartes",
+      "Livraison 100% automatique du produit au client dès paiement confirmé",
+      "Stratégies pour vendre sans budget publicitaire sur WhatsApp et Facebook",
+      "Modèles de tunnels prêts à l'emploi et fichiers sources inclus"
     ],
-    whatsappMessage: "Bonjour Africa Web, je souhaite échanger au sujet de la création d'une Boutique E-commerce / Marketplace à 100 000 FCFA (à débattre)."
+    whatsappMessage: "Bonjour Africa Web, je souhaite m'inscrire à la Formation en création de produit digital professionnel à 15 000 FCFA."
   },
   {
-    id: "webinaire",
-    name: "Plateforme Webinaire & Formations",
-    price: "250 000 FCFA",
-    priceNote: "Solution complète avec hébergement",
-    description: "Solution complète pour coachs, formateurs, conférenciers et créateurs qui veulent héberger leurs cours et automatiser leurs ventes.",
-    delay: "Livraison en 7 à 10 jours",
+    id: "images-publicitaires",
+    name: "3. Formation Création des Images Publicitaires",
+    price: "5 000 FCFA",
+    priceNote: "Visuels percutants · Zéro compétence requise",
+    description: "Créez des visuels publicitaires percutants et des affiches promotionnelles magnifiques avec l'intelligence artificielle pour vos réseaux sociaux et vos ventes.",
+    delay: "Accessible immédiatement sur Android, iPhone & PC",
     popular: false,
-    hosting: "Infrastructure Cloud Dédiée avec streaming vidéo sécurisé",
+    hosting: "IA Générative d'images & Design Express",
     features: [
-      "Plateforme webinaire & académie en ligne (type Système.io / espace dédié)",
-      "Streaming vidéo sécurisé et bande passante fluide sans ralentissement",
-      "Espace membres privé sécurisé avec accès automatique par mot de passe",
-      "Tunnels de vente complets : page de capture, bon de commande, page de remerciement",
-      "Configuration de webinaires automatisés (Evergreen) ou en direct",
-      "Intégration des paiements automatisés et délivrance instantanée des accès",
-      "Accompagnement stratégique VIP pour maximiser vos inscriptions"
+      "Création d'affiches publicitaires qui captivent l'attention et vendent",
+      "Génération d'images de produits ultra-réalistes grâce à l'IA",
+      "Détourage automatique, suppression de fond et mise en scène pro",
+      "Bannières optimisées pour les statuts WhatsApp, Facebook et Instagram",
+      "Règles d'or des contrastes, typographies vendeuses et composition",
+      "Formules de prompts visuels pour générer exactement ce que vous voulez",
+      "Mise en pratique immédiate sur vos propres produits ou services",
+      "Pack de modèles d'affiches et ressources graphiques offertes"
     ],
-    whatsappMessage: "Bonjour Africa Web, je souhaite commander la Plateforme Webinaire & Formations à 250 000 FCFA."
+    whatsappMessage: "Bonjour Africa Web, je souhaite m'inscrire à la Formation en Création des images publicitaires à 5 000 FCFA."
+  },
+  {
+    id: "site-web-pro",
+    name: "4. Formation Création de Site Web Pro Sans Code",
+    price: "25 000 FCFA",
+    priceNote: "25 000 F avec hébergement · 15 000 F sans hébergement",
+    description: "Concevez des sites vitrines d'entreprise, boutiques en ligne e-commerce ou marketplaces complètes sans coder. Apprenez à les héberger gratuitement ou sur Hostinger.",
+    delay: "Projets réels guidés pas-à-pas + Fichiers offerts",
+    popular: true,
+    hosting: "Hébergement Hostinger avec Domaine OU Gratuit",
+    options: [
+      {
+        id: "avec-hebergement",
+        label: "Avec Hébergement Hostinger",
+        price: "25 000 FCFA",
+        note: "Hébergement Hostinger complet, nom de domaine dédié, certificat SSL & adresses e-mails pros inclus",
+        whatsappMessage: "Bonjour Africa Web, je souhaite m'inscrire à la Formation en création de site web pro AVEC hébergement Hostinger à 25 000 FCFA."
+      },
+      {
+        id: "sans-hebergement",
+        label: "Sans Hébergement",
+        price: "15 000 FCFA",
+        note: "Méthode complète de déploiement et hébergement 100% GRATUIT sans aucun frais mensuel",
+        whatsappMessage: "Bonjour Africa Web, je souhaite m'inscrire à la Formation en création de site web pro SANS hébergement à 15 000 FCFA."
+      }
+    ],
+    features: [
+      "Création de sites vitrines d'entreprise modernes, élégants et responsives",
+      "Conception de boutiques e-commerce complètes avec panier et gestion des stocks",
+      "Mise en place de plateformes marketplaces sans écrire une seule ligne de code",
+      "Option Hébergement 100% GRATUIT : déploiement cloud sans abonnement",
+      "Option Hostinger Pro : configuration domaine, certificat SSL et e-mails pro",
+      "Boutons de commande directe WhatsApp et formulaires de devis connectés",
+      "Intégration des paiements Mobile Money et cartes bancaires",
+      "Accompagnement personnalisé pour mettre votre premier site en ligne"
+    ],
+    whatsappMessage: "Bonjour Africa Web, je souhaite m'inscrire à la Formation en création de site web pro sans code (25 000 FCFA avec hébergement / 15 000 FCFA sans hébergement)."
+  },
+  {
+    id: "agent-ia-entreprise",
+    name: "5. Comment créer un agent IA pour les entreprises",
+    price: "20 000 FCFA",
+    priceNote: "Automatisation, Support Client 24/7 & Prospection IA",
+    description: "Apprenez à concevoir, paramétrer et déployer des agents IA autonomes et assistants intelligents capables de gérer le support client, qualifier les prospects et automatiser les ventes pour les entreprises.",
+    delay: "Accès direct + Templates d'agents IA prêts à déployer",
+    popular: true,
+    hosting: "n8n · Botpress · Flowise · WhatsApp API & OpenAI/Gemini",
+    features: [
+      "Architecture complète d'un agent IA d'entreprise et cas d'usage réels",
+      "Création d'agents conversationnels intelligents formés sur les données de l'entreprise",
+      "Connexion directe de l'agent IA à WhatsApp Business pour répondre aux clients 24h/24",
+      "Automatisation de la qualification de prospects et prise de rendez-vous automatique",
+      "Intégration d'outils no-code puissants : n8n, Make, Botpress et Flowise",
+      "Connexion aux bases de données, CRM et feuilles Google Sheets en temps réel",
+      "Méthode pour vendre ce service aux entreprises locales entre 150 000 F et 500 000 F",
+      "Templates complets de workflows et prompts d'agents IA fournis clé en main"
+    ],
+    whatsappMessage: "Bonjour Africa Web, je souhaite m'inscrire à la Formation : Comment créer un agent IA pour les entreprises à 20 000 FCFA."
   }
 ];
 

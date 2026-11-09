@@ -10,6 +10,10 @@ export const FeaturedProduct: React.FC = () => {
     trackClick('product');
   };
 
+  if (product && product.visible === false) {
+    return null;
+  }
+
   return (
     <section id="produit-vedette" className="py-16 bg-gradient-to-b from-amber-50/40 via-white to-white border-b border-slate-100 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">

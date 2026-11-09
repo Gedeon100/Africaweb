@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   BarChart3,
-  Globe,
-  MousePointerClick,
   Upload,
   Image as ImageIcon,
   Video,
@@ -24,13 +22,20 @@ import {
   Layout,
   Eye,
   EyeOff,
-  Server,
   Sparkles,
   AlertTriangle,
-  ShieldCheck
+  ShieldCheck,
+  Lock,
+  Key,
+  GraduationCap,
+  Edit3,
+  User,
+  BookOpen,
+  CheckCircle2,
+  Globe
 } from 'lucide-react';
 import { useAgency, NavLinkItem } from '../context/AgencyContext';
-import { ProjectItem } from '../data/agencyData';
+import { PricingPackage, PricingOption } from '../data/agencyData';
 import { compressImageFile, saveMediaBlob } from '../utils/mediaStorage';
 
 interface OwnerDashboardModalProps {
@@ -38,23 +43,39 @@ interface OwnerDashboardModalProps {
   onClose: () => void;
 }
 
+type TabKey =
+  | 'formations'
+  | 'textes'
+  | 'apropos'
+  | 'media'
+  | 'video'
+  | 'produit'
+  | 'header'
+  | 'footer'
+  | 'colors'
+  | 'typography'
+  | 'settings'
+  | 'stats'
+  | 'security';
+
 export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen, onClose }) => {
   const {
     agencyInfo,
     pricingPackages,
-    portfolioProjects,
     videoPresentation,
     analytics,
     siteTypography,
     siteColors,
     headerConfig,
     footerConfig,
+    isOwnerLoggedIn,
+    ownerEmail,
     logoutOwner,
+    updateOwnerCredentials,
     updateAgencyInfo,
     updatePricingPackage,
-    addPortfolioProject,
-    updatePortfolioProject,
-    deletePortfolioProject,
+    addPricingPackage,
+    deletePricingPackage,
     updateVideoPresentation,
     updateTypography,
     updateColors,
@@ -63,40 +84,89 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     deleteNavLink,
     addNavLink,
     updateFooterConfig,
-    trackClick,
     simulateVisit,
     resetAnalytics,
     resetToDefaults
   } = useAgency();
 
-  const [activeTab, setActiveTab] = useState<'stats' | 'portfolio' | 'typography' | 'colors' | 'header' | 'footer' | 'media' | 'settings'>('stats');
+  const [activeTab, setActiveTab] = useState<TabKey>('formations');
   const [toastMessage, setToastMessage] = useState<string>('');
 
-  // Confirmation states (safe inline replacement for window.confirm in iframes)
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  // Security Credentials state
+  const [secEmail, setSecEmail] = useState(ownerEmail);
+  const [secNewPassword, setSecNewPassword] = useState('');
+  const [secConfirmPassword, setSecConfirmPassword] = useState('');
+  const [showSecPassword, setShowSecPassword] = useState(false);
+  const [secError, setSecError] = useState('');
+  const [secSuccess, setSecSuccess] = useState('');
+
+  // Delete & reset confirmation states
+  const [deletePackageId, setDeletePackageId] = useState<string | null>(null);
   const [deleteNavConfirmId, setDeleteNavConfirmId] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState<boolean>(false);
+
+  // Textes & Hero state
+  const [heroHeadline, setHeroHeadline] = useState(agencyInfo.heroHeadline || '');
+  const [heroSubtitle, setHeroSubtitle] = useState(agencyInfo.heroSubtitle || '');
+  const [heroKicker, setHeroKicker] = useState(agencyInfo.heroKicker || '');
+  const [agencyName, setAgencyName] = useState(agencyInfo.name || '');
+  const [agencySlogan, setAgencySlogan] = useState(agencyInfo.slogan || '');
+  const [agencyMotto, setAgencyMotto] = useState(agencyInfo.motto || '');
+
+  // À Propos state
+  const [aboutTitle, setAboutTitle] = useState(agencyInfo.aboutTitle || '');
+  const [aboutText, setAboutText] = useState(agencyInfo.aboutText || '');
+  const [responsableName, setResponsableName] = useState(agencyInfo.responsableName || '');
+  const [responsableRole, setResponsableRole] = useState(agencyInfo.responsableRole || '');
+  const [responsableBio, setResponsableBio] = useState(agencyInfo.responsableBio || '');
 
   // Media state
   const [logoPreview, setLogoPreview] = useState(agencyInfo.logoUrl);
   const [responsablePreview, setResponsablePreview] = useState(agencyInfo.responsablePhoto);
   const [productImagePreview, setProductImagePreview] = useState(agencyInfo.featuredProduct.image);
-  const [productLink, setProductLink] = useState(agencyInfo.featuredProduct.link);
-  const [productTitle, setProductTitle] = useState(agencyInfo.featuredProduct.title);
 
   // Video state
   const [videoTitle, setVideoTitle] = useState(videoPresentation.title);
   const [videoSubtitle, setVideoSubtitle] = useState(videoPresentation.subtitle);
   const [videoUrl, setVideoUrl] = useState(videoPresentation.videoUrl);
+  const [videoVisible, setVideoVisible] = useState(videoPresentation.visible !== false);
+  const [videoDuration, setVideoDuration] = useState(videoPresentation.duration || '02:45 min');
 
-  // Settings state
+  // Featured Product state
+  const [productTitle, setProductTitle] = useState(agencyInfo.featuredProduct.title);
+  const [productSubtitle, setProductSubtitle] = useState(agencyInfo.featuredProduct.subtitle);
+  const [productBadge, setProductBadge] = useState(agencyInfo.featuredProduct.badge);
+  const [productLink, setProductLink] = useState(agencyInfo.featuredProduct.link);
+  const [productVisible, setProductVisible] = useState(agencyInfo.featuredProduct.visible !== false);
+  const [productHighlights, setProductHighlights] = useState(agencyInfo.featuredProduct.highlights.join('\n'));
+
+  // Settings & Contacts state
   const [whatsappNum, setWhatsappNum] = useState(agencyInfo.whatsappNumber);
+  const [whatsappDisplay, setWhatsappDisplay] = useState(agencyInfo.whatsappDisplay);
   const [emailAddr, setEmailAddr] = useState(agencyInfo.email);
 
   // Typography state
   const [tempFontFamily, setTempFontFamily] = useState(siteTypography.fontFamily);
   const [tempFontSize, setTempFontSize] = useState(siteTypography.fontSize);
   const [tempFontWeight, setTempFontWeight] = useState(siteTypography.fontWeight);
+
+  const [tempTitleFontFamily, setTempTitleFontFamily] = useState(
+    siteTypography.titleFontFamily || siteTypography.fontFamily || 'Arial, Helvetica, sans-serif'
+  );
+  const [tempTitleFontSize, setTempTitleFontSize] = useState(siteTypography.titleFontSize || 36);
+  const [tempTitleFontWeight, setTempTitleFontWeight] = useState(siteTypography.titleFontWeight || '900');
+
+  const [tempSubtitleFontFamily, setTempSubtitleFontFamily] = useState(
+    siteTypography.subtitleFontFamily || siteTypography.fontFamily || 'Arial, Helvetica, sans-serif'
+  );
+  const [tempSubtitleFontSize, setTempSubtitleFontSize] = useState(siteTypography.subtitleFontSize || 16);
+  const [tempSubtitleFontWeight, setTempSubtitleFontWeight] = useState(siteTypography.subtitleFontWeight || '600');
+
+  const [tempPriceFontFamily, setTempPriceFontFamily] = useState(
+    siteTypography.priceFontFamily || 'Arial, Helvetica, sans-serif'
+  );
+  const [tempPriceFontSize, setTempPriceFontSize] = useState(siteTypography.priceFontSize || 32);
+  const [tempPriceFontWeight, setTempPriceFontWeight] = useState(siteTypography.priceFontWeight || '900');
 
   // Colors state
   const [tempPrimary, setTempPrimary] = useState(siteColors.primary);
@@ -109,51 +179,105 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
   const [tempBrandTitle, setTempBrandTitle] = useState(headerConfig.brandTitle);
   const [tempBrandHighlight, setTempBrandHighlight] = useState(headerConfig.brandHighlight);
   const [tempBrandSubtitle, setTempBrandSubtitle] = useState(headerConfig.brandSubtitle);
+  const [showWhatsAppBtn, setShowWhatsAppBtn] = useState(headerConfig.showWhatsAppBtn);
+  const [showOrderBtn, setShowOrderBtn] = useState(headerConfig.showOrderBtn);
   const [newNavLabel, setNewNavLabel] = useState('');
   const [newNavHref, setNewNavHref] = useState('');
 
   // Footer state
   const [tempCopyright, setTempCopyright] = useState(footerConfig.copyrightText);
+  const [showBrandBlock, setShowBrandBlock] = useState(footerConfig.showBrandBlock);
+  const [showServicesBlock, setShowServicesBlock] = useState(footerConfig.showServicesBlock);
+  const [showQuickLinksBlock, setShowQuickLinksBlock] = useState(footerConfig.showQuickLinksBlock);
 
-  // Portfolio addition state
-  const [newProjectTitle, setNewProjectTitle] = useState('');
-  const [newProjectClient, setNewProjectClient] = useState('');
-  const [newProjectCategory, setNewProjectCategory] = useState<'vitrine' | 'ecommerce' | 'webinaire'>('vitrine');
-  const [newProjectLink, setNewProjectLink] = useState('');
-  const [newProjectHosting, setNewProjectHosting] = useState('Nom de Domaine Dédié & Certificat SSL');
-  const [newProjectOutcome, setNewProjectOutcome] = useState('');
-  const [newProjectDesc, setNewProjectDesc] = useState('');
-  const [newProjectImage, setNewProjectImage] = useState<string>('');
+  // Upload status
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
 
-  // Synchronize local form inputs with latest Agency state whenever modal is opened
+  // Add new package state
+  const [newPkgName, setNewPkgName] = useState('');
+  const [newPkgPrice, setNewPkgPrice] = useState('');
+  const [newPkgDesc, setNewPkgDesc] = useState('');
+  const [newPkgTools, setNewPkgTools] = useState('');
+  const [newPkgFeatures, setNewPkgFeatures] = useState('');
+
+  // Synchronize local form inputs when modal is opened
   useEffect(() => {
     if (isOpen) {
+      setHeroHeadline(agencyInfo.heroHeadline || '');
+      setHeroSubtitle(agencyInfo.heroSubtitle || '');
+      setHeroKicker(agencyInfo.heroKicker || '');
+      setAgencyName(agencyInfo.name || '');
+      setAgencySlogan(agencyInfo.slogan || '');
+      setAgencyMotto(agencyInfo.motto || '');
+
+      setAboutTitle(agencyInfo.aboutTitle || '');
+      setAboutText(agencyInfo.aboutText || '');
+      setResponsableName(agencyInfo.responsableName || '');
+      setResponsableRole(agencyInfo.responsableRole || '');
+      setResponsableBio(agencyInfo.responsableBio || '');
+
       setLogoPreview(agencyInfo.logoUrl);
       setResponsablePreview(agencyInfo.responsablePhoto);
       setProductImagePreview(agencyInfo.featuredProduct.image);
-      setProductLink(agencyInfo.featuredProduct.link);
-      setProductTitle(agencyInfo.featuredProduct.title);
+
       setVideoTitle(videoPresentation.title);
       setVideoSubtitle(videoPresentation.subtitle);
       setVideoUrl(videoPresentation.videoUrl);
+      setVideoVisible(videoPresentation.visible !== false);
+      setVideoDuration(videoPresentation.duration || '02:45 min');
+
+      setProductTitle(agencyInfo.featuredProduct.title);
+      setProductSubtitle(agencyInfo.featuredProduct.subtitle);
+      setProductBadge(agencyInfo.featuredProduct.badge);
+      setProductLink(agencyInfo.featuredProduct.link);
+      setProductVisible(agencyInfo.featuredProduct.visible !== false);
+      setProductHighlights(agencyInfo.featuredProduct.highlights.join('\n'));
+
       setWhatsappNum(agencyInfo.whatsappNumber);
+      setWhatsappDisplay(agencyInfo.whatsappDisplay);
       setEmailAddr(agencyInfo.email);
+
       setTempFontFamily(siteTypography.fontFamily);
       setTempFontSize(siteTypography.fontSize);
       setTempFontWeight(siteTypography.fontWeight);
+
+      setTempTitleFontFamily(siteTypography.titleFontFamily || siteTypography.fontFamily || 'Arial, Helvetica, sans-serif');
+      setTempTitleFontSize(siteTypography.titleFontSize || 36);
+      setTempTitleFontWeight(siteTypography.titleFontWeight || '900');
+
+      setTempSubtitleFontFamily(siteTypography.subtitleFontFamily || siteTypography.fontFamily || 'Arial, Helvetica, sans-serif');
+      setTempSubtitleFontSize(siteTypography.subtitleFontSize || 16);
+      setTempSubtitleFontWeight(siteTypography.subtitleFontWeight || '600');
+
+      setTempPriceFontFamily(siteTypography.priceFontFamily || 'Arial, Helvetica, sans-serif');
+      setTempPriceFontSize(siteTypography.priceFontSize || 32);
+      setTempPriceFontWeight(siteTypography.priceFontWeight || '900');
+
       setTempPrimary(siteColors.primary);
       setTempDark(siteColors.primaryDark);
       setTempAccent(siteColors.accent);
       setTempBg(siteColors.bgColor);
       setTempText(siteColors.textColor);
+
       setTempBrandTitle(headerConfig.brandTitle);
       setTempBrandHighlight(headerConfig.brandHighlight);
       setTempBrandSubtitle(headerConfig.brandSubtitle);
+      setShowWhatsAppBtn(headerConfig.showWhatsAppBtn);
+      setShowOrderBtn(headerConfig.showOrderBtn);
+
       setTempCopyright(footerConfig.copyrightText);
+      setShowBrandBlock(footerConfig.showBrandBlock);
+      setShowServicesBlock(footerConfig.showServicesBlock);
+      setShowQuickLinksBlock(footerConfig.showQuickLinksBlock);
+
+      setSecEmail(ownerEmail);
+      setSecNewPassword('');
+      setSecConfirmPassword('');
+      setSecError('');
+      setSecSuccess('');
     }
-  }, [isOpen, agencyInfo, videoPresentation, siteTypography, siteColors, headerConfig, footerConfig]);
+  }, [isOpen, agencyInfo, videoPresentation, siteTypography, siteColors, headerConfig, footerConfig, ownerEmail]);
 
   if (!isOpen) return null;
 
@@ -162,13 +286,13 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     setTimeout(() => setToastMessage(''), 3500);
   };
 
-  // Safe Image Upload with automatic canvas compression (under 200KB, never crashes localStorage or freezes UI)
+  // Safe Image Upload with automatic canvas compression
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, callback: (dataUrl: string) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
-    setUploadStatus("Optimisation et traitement de l'image...");
+    setUploadStatus("Traitement et optimisation de l'image...");
     try {
       const compressedDataUrl = await compressImageFile(file, 1200, 1200, 0.85);
       callback(compressedDataUrl);
@@ -183,7 +307,7 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     }
   };
 
-  // Safe Video Upload with IndexedDB storage (never crashes localStorage or freezes UI)
+  // Safe Video Upload with IndexedDB storage
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -194,19 +318,19 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     }
 
     setIsUploading(true);
-    setUploadStatus("Importation sécurisée de la vidéo depuis votre appareil...");
+    setUploadStatus("Enregistrement de la vidéo...");
     try {
-      // 1. Save binary Blob into IndexedDB
       await saveMediaBlob('presentation_video', file);
-
-      // 2. Create ultra-fast instant Blob URL for smooth playback without lag
       const blobUrl = URL.createObjectURL(file);
       setVideoUrl(blobUrl);
-      updateVideoPresentation({ videoUrl: blobUrl });
-      showToast("Vidéo importée avec succès ! Prête pour la lecture.");
+      updateVideoPresentation({
+        videoUrl: blobUrl,
+        videoType: 'upload'
+      });
+      showToast("Vidéo officielle enregistrée avec succès !");
     } catch (err) {
       console.error(err);
-      showToast("Erreur lors de l'importation de la vidéo.");
+      showToast("Erreur lors du traitement de la vidéo.");
     } finally {
       setIsUploading(false);
       setUploadStatus('');
@@ -214,39 +338,102 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     }
   };
 
-  // Save Media
+  // 1. Save Textes & Hero
+  const handleSaveTextes = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateAgencyInfo({
+      name: agencyName.trim() || agencyInfo.name,
+      slogan: agencySlogan.trim(),
+      motto: agencyMotto.trim(),
+      heroHeadline: heroHeadline.trim(),
+      heroSubtitle: heroSubtitle.trim(),
+      heroKicker: heroKicker.trim()
+    });
+    showToast("Textes principaux et Hero enregistrés !");
+  };
+
+  // 2. Save À Propos & Équipe
+  const handleSaveAbout = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateAgencyInfo({
+      aboutTitle: aboutTitle.trim(),
+      aboutText: aboutText.trim(),
+      responsableName: responsableName.trim(),
+      responsableRole: responsableRole.trim(),
+      responsableBio: responsableBio.trim()
+    });
+    showToast("Section À Propos & Responsable enregistrée !");
+  };
+
+  // 3. Save Media
   const handleSaveMedia = () => {
     updateAgencyInfo({
       logoUrl: logoPreview,
       responsablePhoto: responsablePreview,
       featuredProduct: {
         ...agencyInfo.featuredProduct,
-        image: productImagePreview,
-        link: productLink,
-        title: productTitle
+        image: productImagePreview
       }
     });
-
-    updateVideoPresentation({
-      title: videoTitle,
-      subtitle: videoSubtitle,
-      videoUrl: videoUrl
-    });
-
-    showToast("Médias et vidéo de présentation enregistrés !");
+    showToast("Photos et logo enregistrés avec succès !");
   };
 
-  // Save Typography
+  // 4. Save Video
+  const handleSaveVideo = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateVideoPresentation({
+      title: videoTitle.trim(),
+      subtitle: videoSubtitle.trim(),
+      videoUrl: videoUrl.trim(),
+      duration: videoDuration.trim(),
+      visible: videoVisible
+    });
+    showToast("Configuration de la vidéo enregistrée !");
+  };
+
+  // 5. Save Featured Product
+  const handleSaveProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    const highlightsArray = productHighlights
+      .split('\n')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    updateAgencyInfo({
+      featuredProduct: {
+        ...agencyInfo.featuredProduct,
+        title: productTitle.trim(),
+        subtitle: productSubtitle.trim(),
+        badge: productBadge.trim(),
+        link: productLink.trim(),
+        visible: productVisible,
+        image: productImagePreview,
+        highlights: highlightsArray.length > 0 ? highlightsArray : agencyInfo.featuredProduct.highlights
+      }
+    });
+    showToast("Produit vedette mis à jour avec succès !");
+  };
+
+  // 6. Save Typography
   const handleSaveTypography = () => {
     updateTypography({
       fontFamily: tempFontFamily,
       fontSize: tempFontSize,
-      fontWeight: tempFontWeight
+      fontWeight: tempFontWeight,
+      titleFontFamily: tempTitleFontFamily,
+      titleFontSize: tempTitleFontSize,
+      titleFontWeight: tempTitleFontWeight,
+      subtitleFontFamily: tempSubtitleFontFamily,
+      subtitleFontSize: tempSubtitleFontSize,
+      subtitleFontWeight: tempSubtitleFontWeight,
+      priceFontFamily: tempPriceFontFamily,
+      priceFontSize: tempPriceFontSize,
+      priceFontWeight: tempPriceFontWeight
     });
-    showToast("Police, taille et graisse d'écriture appliquées sur tout le site !");
+    showToast("Typographies (titres, sous-titres, corps, prix) enregistrées !");
   };
 
-  // Save Colors
+  // 7. Save Colors
   const handleSaveColors = () => {
     updateColors({
       primary: tempPrimary,
@@ -258,7 +445,6 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     showToast("Palette de couleurs du site enregistrée !");
   };
 
-  // Preset color helper
   const applyColorPreset = (preset: { primary: string; dark: string; accent: string; bg: string; text: string; name: string }) => {
     setTempPrimary(preset.primary);
     setTempDark(preset.dark);
@@ -275,17 +461,18 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     showToast(`Palette "${preset.name}" appliquée !`);
   };
 
-  // Save Header
+  // 8. Save Header
   const handleSaveHeader = () => {
     updateHeaderConfig({
-      brandTitle: tempBrandTitle,
-      brandHighlight: tempBrandHighlight,
-      brandSubtitle: tempBrandSubtitle
+      brandTitle: tempBrandTitle.trim(),
+      brandHighlight: tempBrandHighlight.trim(),
+      brandSubtitle: tempBrandSubtitle.trim(),
+      showWhatsAppBtn,
+      showOrderBtn
     });
-    showToast("Configuration de l'entête principale enregistrée !");
+    showToast("Entête principale à ligne unique enregistrée !");
   };
 
-  // Add nav link
   const handleAddNavLink = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNavLabel.trim() || !newNavHref.trim()) return;
@@ -297,101 +484,90 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     });
     setNewNavLabel('');
     setNewNavHref('');
-    showToast("Nouvel onglet ajouté à l'entête !");
+    showToast("Nouvel onglet ajouté au menu !");
   };
 
-  // Save Footer
+  // 9. Save Footer
   const handleSaveFooter = () => {
     updateFooterConfig({
-      copyrightText: tempCopyright
+      copyrightText: tempCopyright.trim(),
+      showBrandBlock,
+      showServicesBlock,
+      showQuickLinksBlock
     });
     showToast("Bas de page mis à jour !");
   };
 
-  // Save Settings
+  // 10. Save Contacts
   const handleSaveSettings = () => {
+    const cleanNum = whatsappNum.replace(/\s+/g, '').replace('+', '');
     updateAgencyInfo({
-      whatsappNumber: whatsappNum,
-      whatsappDisplay: whatsappNum.startsWith('229')
-        ? `+229 ${whatsappNum.slice(3, 5)} ${whatsappNum.slice(5, 7)} ${whatsappNum.slice(7, 9)} ${whatsappNum.slice(9, 11)}`
-        : whatsappNum,
-      email: emailAddr
+      whatsappNumber: cleanNum,
+      whatsappDisplay: whatsappDisplay.trim() || (cleanNum.startsWith('229') ? `+229 ${cleanNum.slice(3, 5)} ${cleanNum.slice(5, 7)} ${cleanNum.slice(7, 9)} ${cleanNum.slice(9, 11)}` : cleanNum),
+      email: emailAddr.trim()
     });
-    showToast("Coordonnées et boutons WhatsApp/Email enregistrés !");
+    showToast("Coordonnées WhatsApp & Email enregistrées !");
   };
 
-  // Add Project
-  const handleAddNewProject = (e: React.FormEvent) => {
+  // 11. Security Credentials
+  const handleSaveSecurityCredentials = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProjectTitle.trim() || !newProjectClient.trim()) {
-      showToast("Veuillez renseigner au moins le titre et le client.");
+    setSecError('');
+    setSecSuccess('');
+
+    if (secNewPassword && secNewPassword !== secConfirmPassword) {
+      setSecError('Le nouveau mot de passe et sa confirmation ne correspondent pas.');
       return;
     }
 
-    const categoryLabels = {
-      vitrine: "Site Vitrine Corporate",
-      ecommerce: "Boutique E-commerce & Marketplace",
-      webinaire: "Plateforme Webinaire & Tunnels"
+    if (secNewPassword && secNewPassword.length < 6) {
+      setSecError('Le nouveau mot de passe doit comporter au moins 6 caractères.');
+      return;
+    }
+
+    const res = updateOwnerCredentials(secEmail, secNewPassword || undefined);
+    if (!res.success) {
+      setSecError(res.error || 'Erreur lors de la mise à jour des identifiants.');
+    } else {
+      setSecSuccess('Identifiants propriétaire mis à jour avec succès !');
+      setSecNewPassword('');
+      setSecConfirmPassword('');
+      showToast("Identifiants confidentiels enregistrés !");
+    }
+  };
+
+  // Add new package
+  const handleCreatePackage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPkgName.trim() || !newPkgPrice.trim()) {
+      showToast("Veuillez renseigner au moins le nom et le tarif.");
+      return;
+    }
+
+    const newPkg: PricingPackage = {
+      id: `formation-${Date.now()}`,
+      name: newPkgName.trim(),
+      badge: "Formation Certifiée",
+      price: newPkgPrice.trim(),
+      period: "accès complet",
+      delay: "Accès immédiat",
+      hosting: "Inclus",
+      description: newPkgDesc.trim() || "Programme de formation pratique intensif.",
+      tools: newPkgTools ? newPkgTools.split(',').map(s => s.trim()) : ["Outils Pro"],
+      features: newPkgFeatures
+        ? newPkgFeatures.split('\n').map(s => s.trim()).filter(s => s.length > 0)
+        : ["Support dédié", "Accès à vie", "Pratique guidée"],
+      buttonText: "S'inscrire à cette formation",
+      whatsappMessage: `Bonjour Africa Web, je souhaite m'inscrire à la formation : ${newPkgName.trim()}`
     };
 
-    const themes = {
-      vitrine: {
-        primary: "#0f172a",
-        primaryDark: "#020617",
-        accent: "#0284c7",
-        lightBg: "#f0f9ff",
-        border: "#bae6fd",
-        badgeBg: "#e0f2fe",
-        badgeText: "#0369a1"
-      },
-      ecommerce: {
-        primary: "#9a3412",
-        primaryDark: "#7c2d12",
-        accent: "#d97706",
-        lightBg: "#fef3c7",
-        border: "#fde68a",
-        badgeBg: "#fef3c7",
-        badgeText: "#b45309"
-      },
-      webinaire: {
-        primary: "#312e81",
-        primaryDark: "#1e1b4b",
-        accent: "#6366f1",
-        lightBg: "#eef2ff",
-        border: "#c7d2fe",
-        badgeBg: "#e0e7ff",
-        badgeText: "#4338ca"
-      }
-    };
-
-    const newProj: ProjectItem = {
-      id: `custom-${Date.now()}`,
-      title: newProjectTitle,
-      client: newProjectClient,
-      category: newProjectCategory,
-      categoryLabel: categoryLabels[newProjectCategory],
-      externalLink: newProjectLink.trim() || undefined,
-      image: newProjectImage || undefined,
-      outcome: newProjectOutcome.trim() || "Plateforme déployée et active en production",
-      description: newProjectDesc.trim() || "Site web conçu et optimisé par Africa Web avec nom de domaine dédié.",
-      technologies: ["Déploiement Africa Web", "Nom de Domaine Dédié", "Responsive Mobile", "SSL", "Paiements"],
-      hosting: newProjectHosting.trim() || "Nom de Domaine Dédié Inclus",
-      layoutFormat: newProjectCategory === 'ecommerce' ? 'amazon-jumia' : newProjectCategory === 'webinaire' ? 'facebook-social' : 'blueprint-corporate',
-      heroSlogan: "Plateforme d'exception développée par Africa Web",
-      accentColorName: newProjectCategory === 'ecommerce' ? 'Orange & Noir E-commerce' : newProjectCategory === 'webinaire' ? 'Bleu Social & Blanc' : 'Bleu Acier & Marine',
-      colorTheme: themes[newProjectCategory]
-    };
-
-    addPortfolioProject(newProj);
-    showToast(`Le site vitrine "${newProjectTitle}" a été publié sur la page d'accueil !`);
-
-    // Reset fields
-    setNewProjectTitle('');
-    setNewProjectClient('');
-    setNewProjectLink('');
-    setNewProjectOutcome('');
-    setNewProjectDesc('');
-    setNewProjectImage('');
+    addPricingPackage(newPkg);
+    setNewPkgName('');
+    setNewPkgPrice('');
+    setNewPkgDesc('');
+    setNewPkgTools('');
+    setNewPkgFeatures('');
+    showToast("Nouvelle formation ajoutée avec succès !");
   };
 
   const totalClicks = analytics.clicksWhatsApp + analytics.clicksEmail + analytics.clicksFeaturedProduct + analytics.clicksQuoteForm;
@@ -399,10 +575,27 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
     ? ((totalClicks / analytics.totalVisits) * 100).toFixed(1)
     : '0.0';
 
+  // Compact Tabs definition
+  const tabs: { id: TabKey; label: string; icon: React.ElementType }[] = [
+    { id: 'formations', label: 'Formations & Tarifs', icon: GraduationCap },
+    { id: 'textes', label: 'Textes & Hero', icon: Edit3 },
+    { id: 'apropos', label: 'À Propos & Équipe', icon: User },
+    { id: 'media', label: 'Photos & Logo', icon: ImageIcon },
+    { id: 'video', label: 'Vidéo', icon: Video },
+    { id: 'produit', label: 'Produit Vedette', icon: Sparkles },
+    { id: 'header', label: 'Entête & Menu', icon: Layout },
+    { id: 'footer', label: 'Bas de Page', icon: Layout },
+    { id: 'colors', label: 'Couleurs', icon: Palette },
+    { id: 'typography', label: 'Polices & Tailles', icon: Type },
+    { id: 'settings', label: 'WhatsApp & Contact', icon: Phone },
+    { id: 'stats', label: 'Statistiques', icon: BarChart3 },
+    { id: 'security', label: 'Sécurité & Accès', icon: Key },
+  ];
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200 font-sans">
       <div
-        className="bg-white rounded-2xl max-w-5xl w-full border border-slate-200 shadow-2xl overflow-hidden relative max-h-[92vh] flex flex-col font-sans"
+        className="bg-white rounded-2xl max-w-5xl max-w-[calc(100vw-1rem)] w-full border border-slate-200 shadow-2xl overflow-hidden relative max-h-[92vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Toast Notification */}
@@ -417,101 +610,71 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
         {isUploading && (
           <div className="absolute top-4 left-4 z-50 bg-amber-500 text-slate-950 text-xs font-black px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
             <RefreshCw className="w-4 h-4 animate-spin" />
-            <span>{uploadStatus || "Importation du fichier en cours..."}</span>
+            <span>{uploadStatus || "Importation en cours..."}</span>
           </div>
         )}
 
-        {/* Top Header */}
-        <div className="bg-[#05235c] text-white p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
-              <Sliders className="w-5 h-5" />
+        {/* Modal Top Header */}
+        <div className="bg-[#05235c] text-white px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-between gap-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-black shrink-0">
+              <Sliders className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
-                <span>Panneau de Contrôle Propriétaire · Africa Web</span>
-                <span className="text-[10px] bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded-full font-bold">
-                  Connecté : kgmservices229@gmail.com
+              <h2 className="text-sm sm:text-base font-black tracking-tight flex items-center gap-2">
+                <span>Panneau de Contrôle Propriétaire</span>
+                <span className="hidden sm:inline-block text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded-full font-bold">
+                  {ownerEmail}
                 </span>
               </h2>
-              <p className="text-xs text-slate-300 font-bold">
-                Modifiez tout ce que vous voulez : polices, tailles, couleurs, entête, bas de page, sites vitrines
+              <p className="text-[11px] text-slate-300 font-medium hidden sm:block">
+                Modifiez tout sur votre plateforme : formations, textes, prix, photos, couleurs, vidéo
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => {
                 logoutOwner();
                 onClose();
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-md cursor-pointer border border-red-500"
-              title="Se déconnecter de votre compte propriétaire"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all shadow-xs cursor-pointer"
+              title="Se déconnecter"
             >
-              <LogOut className="w-4 h-4" />
-              <span>Me Déconnecter</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Déconnexion</span>
             </button>
 
             <button
               onClick={onClose}
-              className="p-2 text-slate-300 hover:text-white rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               aria-label="Fermer"
-              title="Fermer la console"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Barre de Tâches Ultra-Visible pour mener chaque action */}
-        <div className="bg-slate-900 text-white p-3 sm:p-3.5 border-b border-slate-800">
-          <div className="text-[11px] font-black uppercase tracking-wider text-amber-400 mb-2.5 flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5 text-amber-400" />
-              <span>Barre de tâches du propriétaire (Cliquez pour mener chaque action) :</span>
-            </span>
-            <span className="text-slate-400 font-mono text-[10px] hidden sm:inline">8 actions disponibles</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-            {[
-              { id: 'stats', num: '1', label: 'Statistiques', desc: 'Visites & CTR', icon: BarChart3 },
-              { id: 'portfolio', num: '2', label: 'Sites & Vitrines', desc: 'Ajouter/Gérer', icon: Globe },
-              { id: 'typography', num: '3', label: 'Polices & Tailles', desc: 'Écritures', icon: Type },
-              { id: 'colors', num: '4', label: 'Couleurs', desc: 'Thème du site', icon: Palette },
-              { id: 'header', num: '5', label: 'Entête / Menu', desc: 'Onglets', icon: Layout },
-              { id: 'footer', num: '6', label: 'Bas de Page', desc: 'Pied de page', icon: Layout },
-              { id: 'media', num: '7', label: 'Médias & Vidéo', desc: 'Logo, Vidéo', icon: Upload },
-              { id: 'settings', num: '8', label: 'Tarifs & Contact', desc: 'Prix, WhatsApp', icon: DollarSign },
-            ].map((tab) => {
+        {/* Compact, Sleek Action Button Tabs Bar (Reduit et fluide) */}
+        <div className="bg-slate-900 px-3 py-2 border-b border-slate-800">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+            {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex flex-col items-center justify-center p-2.5 sm:p-2.5 rounded-xl font-bold transition-all cursor-pointer text-center relative border-2 ${
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                     isActive
-                      ? 'bg-amber-400 text-slate-950 border-white shadow-lg scale-102 font-black ring-2 ring-amber-300'
-                      : 'bg-slate-800/90 text-slate-200 border-slate-700/80 hover:bg-slate-750 hover:border-slate-500 hover:text-white'
+                      ? 'bg-amber-400 text-slate-950 font-black shadow-xs ring-1 ring-amber-300'
+                      : 'bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-750'
                   }`}
                 >
-                  <div className="flex items-center gap-1 mb-1">
-                    <span
-                      className={`w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] font-black ${
-                        isActive ? 'bg-slate-950 text-amber-300' : 'bg-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {tab.num}
-                    </span>
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : 'text-amber-400'}`} />
-                  </div>
-                  <span className="text-[11px] sm:text-xs leading-tight font-black">{tab.label}</span>
-                  <span className={`text-[9px] font-medium mt-0.5 hidden sm:block ${isActive ? 'text-slate-900 font-bold' : 'text-slate-400'}`}>
-                    {tab.desc}
-                  </span>
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : 'text-amber-400'}`} />
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
@@ -520,891 +683,903 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
 
         {/* Tab Content Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50">
-          {/* TAB 1: STATS */}
-          {activeTab === 'stats' && (
+          {/* TAB 1: FORMATIONS & TARIFS */}
+          {activeTab === 'formations' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider">Visites Totales</span>
-                    <BarChart3 className="w-4 h-4 text-[#073587]" />
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      Gérer les 5 Formations Officielles & Tarifs
+                    </h3>
+                    <p className="text-xs text-slate-600 font-semibold">
+                      Modifiez directement les intitulés, prix (10 000f, 15 000f, 5 000f, 25 000f/15 000f, 20 000f), sous-options et outils.
+                    </p>
                   </div>
-                  <div className="text-3xl font-black text-slate-900 font-mono">
-                    {analytics.totalVisits.toLocaleString()}
-                  </div>
-                  <p className="text-[11px] text-emerald-600 font-bold mt-1">+12% cette semaine</p>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider">Visiteurs Uniques</span>
-                    <Smartphone className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <div className="text-3xl font-black text-slate-900 font-mono">
-                    {analytics.uniqueVisitors.toLocaleString()}
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-bold mt-1">Mobiles Android et PC</p>
-                </div>
+                <div className="space-y-4">
+                  {pricingPackages.map((pkg, index) => (
+                    <div key={pkg.id} className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50/50 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                        <span className="text-xs font-black text-[#073587] uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-[#073587] text-white flex items-center justify-center text-[11px]">
+                            {index + 1}
+                          </span>
+                          <span>{pkg.name}</span>
+                        </span>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider">Taux de Clics (CTR)</span>
-                    <MousePointerClick className="w-4 h-4 text-amber-500" />
-                  </div>
-                  <div className="text-3xl font-black text-amber-600 font-mono">{ctrRate}%</div>
-                  <p className="text-[11px] text-slate-500 font-bold mt-1">{totalClicks} clics qualifiés</p>
-                </div>
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={pkg.popular || false}
+                              onChange={(e) => updatePricingPackage(pkg.id, { popular: e.target.checked })}
+                              className="rounded border-slate-300 text-amber-500 focus:ring-amber-400"
+                            />
+                            <span>Mettre en avant</span>
+                          </label>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider">Clics WhatsApp</span>
-                    <Phone className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <div className="text-3xl font-black text-emerald-600 font-mono">
-                    {analytics.clicksWhatsApp}
-                  </div>
-                  <p className="text-[11px] text-emerald-700 font-bold mt-1">Contacts directs</p>
-                </div>
-              </div>
-
-              {/* Geographic Breakdown */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-[#073587]" />
-                  <span>Origine des Visiteurs par Pays</span>
-                </h3>
-                <div className="space-y-3">
-                  {Object.entries(analytics.countryVisits).map(([country, count]) => {
-                    const percentage = Math.round((count / analytics.totalVisits) * 100);
-                    return (
-                      <div key={country} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-black text-slate-800">
-                          <span>{country}</span>
-                          <span className="font-mono text-slate-600">{count} visites ({percentage}%)</span>
-                        </div>
-                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-[#073587] to-amber-500 rounded-full"
-                            style={{ width: `${percentage}%` }}
-                          />
+                          {deletePackageId === pkg.id ? (
+                            <div className="flex items-center gap-1.5 bg-red-100 p-1 rounded-lg border border-red-300 text-xs">
+                              <span className="text-red-700 font-bold">Confirmer ?</span>
+                              <button
+                                onClick={() => {
+                                  deletePricingPackage(pkg.id);
+                                  setDeletePackageId(null);
+                                  showToast("Formation supprimée.");
+                                }}
+                                className="px-2 py-0.5 bg-red-600 text-white rounded font-black hover:bg-red-700"
+                              >
+                                Oui
+                              </button>
+                              <button
+                                onClick={() => setDeletePackageId(null)}
+                                className="px-2 py-0.5 bg-slate-200 text-slate-800 rounded font-bold"
+                              >
+                                Non
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setDeletePackageId(pkg.id)}
+                              className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                              title="Supprimer cette formation"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
 
-              {/* Simulation & Test Controls */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <span>Test & Simulation des Visites en Temps Réel</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                        <div className="sm:col-span-6">
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                            Titre de la formation
+                          </label>
+                          <input
+                            type="text"
+                            value={pkg.name}
+                            onChange={(e) => updatePricingPackage(pkg.id, { name: e.target.value })}
+                            className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-3">
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                            Prix affiché
+                          </label>
+                          <input
+                            type="text"
+                            value={pkg.price}
+                            onChange={(e) => updatePricingPackage(pkg.id, { price: e.target.value })}
+                            style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+                            className="w-full text-sm font-black px-3 py-2 bg-white border border-slate-300 rounded-lg text-amber-700 focus:ring-2 focus:ring-[#073587] outline-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-3">
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                            Badge
+                          </label>
+                          <input
+                            type="text"
+                            value={pkg.badge || ''}
+                            onChange={(e) => updatePricingPackage(pkg.id, { badge: e.target.value })}
+                            placeholder="ex: Recommandé"
+                            className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-12">
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                            Description synthétique
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={pkg.description}
+                            onChange={(e) => updatePricingPackage(pkg.id, { description: e.target.value })}
+                            className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                          />
+                        </div>
+
+                        {/* Sub-options if available (e.g. Service 4 Hostinger 25k vs Sans hébergement 15k) */}
+                        {pkg.options && pkg.options.length > 0 && (
+                          <div className="sm:col-span-12 p-3 bg-amber-50/70 rounded-xl border border-amber-200 space-y-2">
+                            <span className="text-[11px] font-black text-amber-900 uppercase">
+                              Sous-Options de tarification (ex: avec ou sans hébergement) :
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {pkg.options.map((opt, optIdx) => (
+                                <div key={opt.id} className="p-2 bg-white rounded-lg border border-amber-200 space-y-1">
+                                  <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+                                    <span>Option {optIdx + 1}</span>
+                                    <input
+                                      type="text"
+                                      value={opt.price}
+                                      onChange={(e) => {
+                                        const updatedOpts = [...pkg.options!];
+                                        updatedOpts[optIdx] = { ...updatedOpts[optIdx], price: e.target.value };
+                                        updatePricingPackage(pkg.id, { options: updatedOpts });
+                                      }}
+                                      style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+                                      className="w-24 text-right text-xs font-black text-amber-700 px-1.5 py-0.5 border border-slate-300 rounded"
+                                    />
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={opt.label || opt.name || ''}
+                                    onChange={(e) => {
+                                      const updatedOpts = [...pkg.options!];
+                                      updatedOpts[optIdx] = {
+                                        ...updatedOpts[optIdx],
+                                        label: e.target.value,
+                                        name: e.target.value
+                                      };
+                                      updatePricingPackage(pkg.id, { options: updatedOpts });
+                                    }}
+                                    className="w-full text-[11px] font-semibold px-2 py-1 border border-slate-300 rounded"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add new package form */}
+                <div className="mt-6 pt-5 border-t border-slate-200">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-3 flex items-center gap-1.5">
+                    <Plus className="w-4 h-4 text-[#073587]" />
+                    <span>Ajouter une nouvelle formation ou un service sur mesure</span>
                   </h4>
-                  <p className="text-[11px] text-slate-500 font-bold mt-0.5">
-                    Testez le bon fonctionnement du compteur et observez la mise à jour immédiate des graphiques
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => {
-                      simulateVisit();
-                      showToast("+1 Visiteur comptabilisé en direct !");
-                    }}
-                    className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-[#073587] border border-blue-200 rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+1 Visite (Test)</span>
-                  </button>
 
-                  <button
-                    onClick={() => {
-                      trackClick('whatsapp');
-                      showToast("+1 Clic WhatsApp comptabilisé !");
-                    }}
-                    className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
-                  >
-                    <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>+1 Clic WhatsApp</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      resetAnalytics();
-                      showToast("Statistiques réinitialisées pour une nouvelle période !");
-                    }}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black transition-colors cursor-pointer"
-                  >
-                    Réinitialiser
-                  </button>
+                  <form onSubmit={handleCreatePackage} className="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div className="sm:col-span-6">
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Nom de la formation</label>
+                      <input
+                        type="text"
+                        value={newPkgName}
+                        onChange={(e) => setNewPkgName(e.target.value)}
+                        placeholder="ex: Formation Automatisation WhatsApp"
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarif (FCFA)</label>
+                      <input
+                        type="text"
+                        value={newPkgPrice}
+                        onChange={(e) => setNewPkgPrice(e.target.value)}
+                        placeholder="ex: 20 000 FCFA"
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none font-mono"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Outils utilisés</label>
+                      <input
+                        type="text"
+                        value={newPkgTools}
+                        onChange={(e) => setNewPkgTools(e.target.value)}
+                        placeholder="ex: Make, ChatGPT"
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      />
+                    </div>
+                    <div className="sm:col-span-12">
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Description</label>
+                      <input
+                        type="text"
+                        value={newPkgDesc}
+                        onChange={(e) => setNewPkgDesc(e.target.value)}
+                        placeholder="Description synthétique des compétences acquises"
+                        className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      />
+                    </div>
+                    <div className="sm:col-span-12 flex justify-end">
+                      <button
+                        type="submit"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Créer la formation</span>
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: PORTFOLIO & MULTI SITES VITRINES */}
-          {activeTab === 'portfolio' && (
+          {/* TAB 2: TEXTES & HERO */}
+          {activeTab === 'textes' && (
             <div className="space-y-6">
-              {/* Quick Add Presets */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl space-y-2">
-                <span className="text-xs font-black text-[#073587] uppercase tracking-wider block">
-                  Ajout rapide de sites réalisés :
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => {
-                      setNewProjectCategory('vitrine');
-                      setNewProjectTitle('Site Vitrine Entreprise Démo');
-                      setNewProjectClient('Client PME Bénin');
-                      setNewProjectDesc('Site vitrine corporate avec nom de domaine dédié et formulaire WhatsApp.');
-                    }}
-                    className="px-3 py-1.5 bg-white text-[#073587] border border-blue-300 rounded-xl text-xs font-black hover:bg-blue-100 transition-colors cursor-pointer"
-                  >
-                    + Pré-remplir Site Vitrine
-                  </button>
+              <form onSubmit={handleSaveTextes} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                <div className="border-b border-slate-100 pb-3">
+                  <h3 className="text-base font-black text-slate-900">
+                    Textes Principaux, Slogans & Section Hero
+                  </h3>
+                  <p className="text-xs text-slate-600 font-semibold">
+                    Modifiez le titre d'accroche de la page d'accueil, les sous-titres et slogans.
+                  </p>
+                </div>
 
-                  <button
-                    onClick={() => {
-                      setNewProjectCategory('ecommerce');
-                      setNewProjectTitle('Boutique E-commerce Mode & Vente');
-                      setNewProjectClient('Maison de Mode Africaine');
-                      setNewProjectDesc('Boutique e-commerce avec paiements Mobile Money MTN, Moov et Wave.');
-                    }}
-                    className="px-3 py-1.5 bg-white text-amber-800 border border-amber-300 rounded-xl text-xs font-black hover:bg-amber-100 transition-colors cursor-pointer"
-                  >
-                    + Pré-remplir Boutique E-commerce
-                  </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Nom de l'agence
+                    </label>
+                    <input
+                      type="text"
+                      value={agencyName}
+                      onChange={(e) => setAgencyName(e.target.value)}
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
+                  </div>
 
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Surtitre d'accroche (Kicker)
+                    </label>
+                    <input
+                      type="text"
+                      value={heroKicker}
+                      onChange={(e) => setHeroKicker(e.target.value)}
+                      placeholder="Académie & Agence Numérique · Formations Pratiques"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Titre principal du Hero (H1)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={heroHeadline}
+                      onChange={(e) => setHeroHeadline(e.target.value)}
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Sous-titre explicatif du Hero
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={heroSubtitle}
+                      onChange={(e) => setHeroSubtitle(e.target.value)}
+                      className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Slogan court
+                    </label>
+                    <input
+                      type="text"
+                      value={agencySlogan}
+                      onChange={(e) => setAgencySlogan(e.target.value)}
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Devise (Motto)
+                    </label>
+                    <input
+                      type="text"
+                      value={agencyMotto}
+                      onChange={(e) => setAgencyMotto(e.target.value)}
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
                   <button
-                    onClick={() => {
-                      setNewProjectCategory('webinaire');
-                      setNewProjectTitle('Académie en Ligne & Cours');
-                      setNewProjectClient('Coach & Formateur International');
-                      setNewProjectDesc('Plateforme webinaire et cours vidéo avec espace membres privé sécurisé.');
-                    }}
-                    className="px-3 py-1.5 bg-white text-indigo-800 border border-indigo-300 rounded-xl text-xs font-black hover:bg-indigo-100 transition-colors cursor-pointer"
+                    type="submit"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
-                    + Pré-remplir Plateforme Webinaire
+                    <Save className="w-4 h-4" />
+                    <span>Enregistrer les textes</span>
                   </button>
                 </div>
-              </div>
+              </form>
+            </div>
+          )}
 
-              {/* Form to Add New Site */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-[#073587]" />
-                  <span>Publier un nouveau site vitrine / boutique sur la page d'accueil</span>
-                </h3>
+          {/* TAB 3: À PROPOS & ÉQUIPE */}
+          {activeTab === 'apropos' && (
+            <div className="space-y-6">
+              <form onSubmit={handleSaveAbout} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                <div className="border-b border-slate-100 pb-3">
+                  <h3 className="text-base font-black text-slate-900">
+                    Section À Propos & Responsable Clientèle
+                  </h3>
+                  <p className="text-xs text-slate-600 font-semibold">
+                    Personnalisez les coordonnées du fondateur/responsable, son rôle et la présentation de l'agence.
+                  </p>
+                </div>
 
-                <form onSubmit={handleAddNewProject} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-700 mb-1">
-                        Titre du site vitrine / boutique * :
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: AfrikBât Architecture & Construction"
-                        value={newProjectTitle}
-                        onChange={(e) => setNewProjectTitle(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-black text-slate-700 mb-1">
-                        Nom du client / Entreprise * :
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: Cabinet AfrikBât Bénin"
-                        value={newProjectClient}
-                        onChange={(e) => setNewProjectClient(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
-                      />
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Nom du Responsable
+                    </label>
+                    <input
+                      type="text"
+                      value={responsableName}
+                      onChange={(e) => setResponsableName(e.target.value)}
+                      placeholder="ex: Samuel G."
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-700 mb-1">Catégorie :</label>
-                      <select
-                        value={newProjectCategory}
-                        onChange={(e) => setNewProjectCategory(e.target.value as any)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold bg-white"
-                      >
-                        <option value="vitrine">Site Internet Simple / Vitrine Entreprise</option>
-                        <option value="ecommerce">Boutique E-commerce / Marketplace</option>
-                        <option value="webinaire">Plateforme Webinaire & Formations</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-black text-slate-700 mb-1">Lien réel du site (URL) :</label>
-                      <input
-                        type="url"
-                        placeholder="https://..."
-                        value={newProjectLink}
-                        onChange={(e) => setNewProjectLink(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono font-bold text-[#073587]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-black text-slate-700 mb-1">Hébergement :</label>
-                      <input
-                        type="text"
-                        value={newProjectHosting}
-                        onChange={(e) => setNewProjectHosting(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Rôle / Fonction
+                    </label>
+                    <input
+                      type="text"
+                      value={responsableRole}
+                      onChange={(e) => setResponsableRole(e.target.value)}
+                      placeholder="ex: Direction & Service Clientèle"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-700 mb-1">Résultat mesuré :</label>
-                      <input
-                        type="text"
-                        placeholder="Ex: +180% de devis en 30 jours"
-                        value={newProjectOutcome}
-                        onChange={(e) => setNewProjectOutcome(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
-                      />
-                    </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Engagement & Bio du Responsable
+                    </label>
+                    <input
+                      type="text"
+                      value={responsableBio}
+                      onChange={(e) => setResponsableBio(e.target.value)}
+                      placeholder="Votre interlocuteur dédié pour le cadrage et le suivi de vos formations..."
+                      className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
+                  </div>
 
-                    <div>
-                      <label className="block text-xs font-black text-slate-700 mb-1">
-                        Capture d'écran / Photo (Android ou PC) :
-                      </label>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Titre de la section À Propos
+                    </label>
+                    <input
+                      type="text"
+                      value={aboutTitle}
+                      onChange={(e) => setAboutTitle(e.target.value)}
+                      placeholder="Un partenaire humain et dévoué à votre réussite en ligne."
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Texte de mission et vision
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={aboutText}
+                      onChange={(e) => setAboutText(e.target.value)}
+                      className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#073587] outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Enregistrer la section À Propos</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* TAB 4: PHOTOS & LOGO */}
+          {activeTab === 'media' && (
+            <div className="space-y-6">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
+                <div className="border-b border-slate-100 pb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      Gestion des Photos & du Logo
+                    </h3>
+                    <p className="text-xs text-slate-600 font-semibold">
+                      Importez directement depuis votre appareil (Android, iPhone ou PC) ou collez un lien d'image.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSaveMedia}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Sauvegarder les images</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {/* Logo Card */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                    <span className="text-xs font-black text-slate-900 uppercase">1. Logo Africa Web</span>
+                    <div className="h-32 bg-white rounded-lg border border-slate-300 p-2 flex items-center justify-center overflow-hidden">
+                      <img src={logoPreview} alt="Logo" className="max-h-full max-w-full object-contain" />
+                    </div>
+                    <label className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#073587] text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-[#05235c] transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Changer le logo</span>
                       <input
                         type="file"
                         accept="image/*"
-                        disabled={isUploading}
-                        onChange={(e) => handleImageUpload(e, setNewProjectImage)}
-                        className="block w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-800 file:text-white cursor-pointer"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e, setLogoPreview)}
                       />
-                      {newProjectImage && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <img src={newProjectImage} alt="Aperçu nouveau projet" className="w-12 h-9 object-cover rounded border border-slate-300" />
-                          <span className="text-[10px] text-emerald-600 font-bold">Image chargée et prête</span>
-                        </div>
-                      )}
+                    </label>
+                    <input
+                      type="text"
+                      value={logoPreview}
+                      onChange={(e) => setLogoPreview(e.target.value)}
+                      placeholder="Ou URL directe du logo"
+                      className="w-full text-[11px] font-mono px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
+
+                  {/* Photo Responsable Card */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                    <span className="text-xs font-black text-slate-900 uppercase">2. Photo du Responsable</span>
+                    <div className="h-32 bg-white rounded-lg border border-slate-300 p-2 flex items-center justify-center overflow-hidden">
+                      <img src={responsablePreview} alt="Responsable" className="max-h-full max-w-full object-contain" />
                     </div>
+                    <label className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#073587] text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-[#05235c] transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Changer la photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e, setResponsablePreview)}
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      value={responsablePreview}
+                      onChange={(e) => setResponsablePreview(e.target.value)}
+                      placeholder="Ou URL directe de la photo"
+                      className="w-full text-[11px] font-mono px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
+
+                  {/* Photo Produit Card */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                    <span className="text-xs font-black text-slate-900 uppercase">3. Photo Produit Vedette</span>
+                    <div className="h-32 bg-white rounded-lg border border-slate-300 p-2 flex items-center justify-center overflow-hidden">
+                      <img src={productImagePreview} alt="Produit" className="max-h-full max-w-full object-contain" />
+                    </div>
+                    <label className="flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-amber-700 transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Changer l'image</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e, setProductImagePreview)}
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      value={productImagePreview}
+                      onChange={(e) => setProductImagePreview(e.target.value)}
+                      placeholder="Ou URL directe du produit"
+                      className="w-full text-[11px] font-mono px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: VIDÉO DE PRÉSENTATION */}
+          {activeTab === 'video' && (
+            <div className="space-y-6">
+              <form onSubmit={handleSaveVideo} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      Vidéo de Présentation Officielle
+                    </h3>
+                    <p className="text-xs text-slate-600 font-semibold">
+                      Personnalisez le titre, la durée, le fichier vidéo ou activez/désactivez la section.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold">
+                    <input
+                      type="checkbox"
+                      checked={videoVisible}
+                      onChange={(e) => setVideoVisible(e.target.checked)}
+                      className="rounded text-[#073587]"
+                    />
+                    <span>{videoVisible ? 'Section visible sur le site' : 'Section masquée'}</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Titre de la vidéo
+                    </label>
+                    <input
+                      type="text"
+                      value={videoTitle}
+                      onChange={(e) => setVideoTitle(e.target.value)}
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Sous-titre descriptif
+                    </label>
+                    <input
+                      type="text"
+                      value={videoSubtitle}
+                      onChange={(e) => setVideoSubtitle(e.target.value)}
+                      className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">Description :</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Présentez les spécificités du site..."
-                      value={newProjectDesc}
-                      onChange={(e) => setNewProjectDesc(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Durée affichée
+                    </label>
+                    <input
+                      type="text"
+                      value={videoDuration}
+                      onChange={(e) => setVideoDuration(e.target.value)}
+                      placeholder="02:45 min"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Fichier vidéo depuis votre appareil
+                    </label>
+                    <label className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#073587] text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-[#05235c] transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Importer un fichier MP4</span>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        className="hidden"
+                        onChange={handleVideoUpload}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Lien direct (URL vidéo)
+                    </label>
+                    <input
+                      type="text"
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                      className="w-full text-xs font-mono px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
                   <button
                     type="submit"
-                    className="py-3 px-6 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-xs flex items-center gap-2 cursor-pointer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>Publier ce site vitrine sur la page d'accueil</span>
+                    <Save className="w-4 h-4" />
+                    <span>Enregistrer la vidéo</span>
                   </button>
-                </form>
-              </div>
-
-              {/* Existing Sites List with Delete */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-3">
-                  Sites vitrines & boutiques actuellement en ligne ({portfolioProjects.length}) :
-                </h3>
-
-                <div className="space-y-3">
-                  {portfolioProjects.map((p) => (
-                    <div
-                      key={p.id}
-                      className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {p.image ? (
-                          <img src={p.image} alt={p.title} className="w-12 h-10 object-cover rounded-md border border-slate-300 shrink-0" />
-                        ) : (
-                          <div className="w-12 h-10 bg-[#073587] text-white flex items-center justify-center font-black text-xs rounded-md shrink-0">
-                            WEB
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-black text-slate-900 truncate">{p.title}</h4>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-500 font-bold">
-                            <span>{p.client}</span>
-                            <span>·</span>
-                            <span className="text-[#073587]">{p.categoryLabel}</span>
-                          </div>
-                          <span className="text-[10px] text-emerald-700 font-bold block">{p.hosting}</span>
-                        </div>
-                      </div>
-
-                      {deleteConfirmId === p.id ? (
-                        <div className="flex items-center gap-1.5 shrink-0 bg-red-50 p-1 rounded-lg border border-red-200">
-                          <button
-                            onClick={() => {
-                              deletePortfolioProject(p.id);
-                              setDeleteConfirmId(null);
-                              showToast(`Site "${p.title}" supprimé de la page d'accueil.`);
-                            }}
-                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-black cursor-pointer shadow-xs"
-                          >
-                            Confirmer
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[11px] font-bold cursor-pointer"
-                          >
-                            Annuler
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setDeleteConfirmId(p.id)}
-                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors shrink-0 cursor-pointer"
-                          title="Supprimer ce site"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
                 </div>
-              </div>
+              </form>
             </div>
           )}
 
-          {/* TAB 3: TYPOGRAPHY (FONT FAMILY & FONT SIZE) */}
-          {activeTab === 'typography' && (
+          {/* TAB 6: PRODUIT VEDETTE */}
+          {activeTab === 'produit' && (
             <div className="space-y-6">
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <Type className="w-4 h-4 text-[#073587]" />
-                  <span>Changer la Police d'Écriture du Site</span>
-                </h3>
-
-                <div>
-                  <label className="block text-xs font-black text-slate-700 mb-1.5">
-                    Sélectionner une police populaire :
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                    {[
-                      { label: "Arial", value: "Arial, Helvetica, sans-serif" },
-                      { label: "Times New Roman", value: "'Times New Roman', Times, serif" },
-                      { label: "Plus Jakarta Sans", value: "'Plus Jakarta Sans', sans-serif" },
-                      { label: "Georgia", value: "Georgia, serif" },
-                      { label: "Montserrat", value: "Montserrat, sans-serif" },
-                      { label: "Poppins", value: "Poppins, sans-serif" },
-                      { label: "Roboto", value: "Roboto, sans-serif" },
-                      { label: "Trebuchet MS", value: "'Trebuchet MS', sans-serif" },
-                    ].map(f => (
-                      <button
-                        key={f.label}
-                        type="button"
-                        onClick={() => {
-                          setTempFontFamily(f.value);
-                          updateTypography({ fontFamily: f.value });
-                          showToast(`Police appliquée : ${f.label} !`);
-                        }}
-                        className={`p-2.5 rounded-xl border text-xs font-black transition-all cursor-pointer ${
-                          tempFontFamily.includes(f.label)
-                            ? 'bg-[#073587] text-white border-[#073587]'
-                            : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100'
-                        }`}
-                        style={{ fontFamily: f.value }}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
+              <form onSubmit={handleSaveProduct} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      Section Produit Vedette (Guide Culinaire ou Produit Numérique)
+                    </h3>
+                    <p className="text-xs text-slate-600 font-semibold">
+                      Personnalisez le titre, le badge promo, le lien de commande ou activez/désactivez la section.
+                    </p>
                   </div>
-
-                  <label className="block text-xs font-black text-slate-700 mb-1">
-                    Ou saisir le nom de n'importe quelle police personnalisée :
+                  <label className="flex items-center gap-2 cursor-pointer bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold">
+                    <input
+                      type="checkbox"
+                      checked={productVisible}
+                      onChange={(e) => setProductVisible(e.target.checked)}
+                      className="rounded text-amber-600"
+                    />
+                    <span>{productVisible ? 'Section visible sur le site' : 'Section masquée'}</span>
                   </label>
-                  <input
-                    type="text"
-                    value={tempFontFamily}
-                    onChange={(e) => {
-                      setTempFontFamily(e.target.value);
-                      updateTypography({ fontFamily: e.target.value });
-                    }}
-                    placeholder="Ex: Arial, Tahoma, Helvetica..."
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 font-bold"
-                  />
                 </div>
 
-                {/* Font Size Selector */}
-                <div className="pt-2 border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-black text-slate-700">
-                      Taille de base des écritures :
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Titre du produit
                     </label>
-                    <span className="text-base font-black text-[#073587] font-mono">
-                      {tempFontSize}px
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
                     <input
-                      type="range"
-                      min={13}
-                      max={26}
-                      step={1}
-                      value={tempFontSize}
-                      onChange={(e) => {
-                        const size = Number(e.target.value);
-                        setTempFontSize(size);
-                        updateTypography({ fontSize: size });
-                      }}
-                      className="w-full accent-[#073587] cursor-pointer"
+                      type="text"
+                      value={productTitle}
+                      onChange={(e) => setProductTitle(e.target.value)}
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
                     />
                   </div>
 
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {[14, 15, 16, 17, 18, 20, 22].map(size => (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => {
-                          setTempFontSize(size);
-                          updateTypography({ fontSize: size });
-                          showToast(`Taille appliquée : ${size}px !`);
-                        }}
-                        className={`px-3 py-1 rounded-lg text-xs font-black border cursor-pointer ${
-                          tempFontSize === size
-                            ? 'bg-[#073587] text-white border-[#073587]'
-                            : 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200'
-                        }`}
-                      >
-                        {size}px
-                      </button>
-                    ))}
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Badge Promotionnel
+                    </label>
+                    <input
+                      type="text"
+                      value={productBadge}
+                      onChange={(e) => setProductBadge(e.target.value)}
+                      placeholder="ex: -70% DE RÉDUCTION"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Sous-titre
+                    </label>
+                    <input
+                      type="text"
+                      value={productSubtitle}
+                      onChange={(e) => setProductSubtitle(e.target.value)}
+                      className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Lien de redirection (Page de commande / Vente)
+                    </label>
+                    <input
+                      type="text"
+                      value={productLink}
+                      onChange={(e) => setProductLink(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full text-xs font-mono px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-[#073587] font-bold"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Points forts (Un point par ligne)
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={productHighlights}
+                      onChange={(e) => setProductHighlights(e.target.value)}
+                      className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none font-mono"
+                    />
                   </div>
                 </div>
 
-                {/* Font Weight Selector */}
-                <div className="pt-2 border-t border-slate-100">
-                  <label className="block text-xs font-black text-slate-700 mb-2">
-                    Graisse des écritures :
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { label: "Normal (400)", val: "400" },
-                      { label: "Semi-Gras (600)", val: "600" },
-                      { label: "Gras (700)", val: "700" },
-                      { label: "Extra-Gras (800)", val: "800" },
-                      { label: "Noir Intense (900)", val: "900" },
-                    ].map(w => (
-                      <button
-                        key={w.val}
-                        type="button"
-                        onClick={() => {
-                          setTempFontWeight(w.val);
-                          updateTypography({ fontWeight: w.val });
-                          showToast(`Graisse appliquée : ${w.label} !`);
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-black border cursor-pointer ${
-                          tempFontWeight === w.val
-                            ? 'bg-[#073587] text-white border-[#073587]'
-                            : 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200'
-                        }`}
-                      >
-                        {w.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Live Preview Box */}
-                <div className="p-4 rounded-xl border border-slate-300 bg-slate-50 space-y-1">
-                  <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block font-bold">
-                    Aperçu en direct du texte :
-                  </span>
-                  <p
-                    style={{
-                      fontFamily: tempFontFamily,
-                      fontSize: `${tempFontSize}px`,
-                      fontWeight: tempFontWeight
-                    }}
-                    className="text-slate-900 leading-snug"
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
-                    Africa Web · Création de sites vitrines et boutiques e-commerce d'exception en Afrique.
-                  </p>
+                    <Save className="w-4 h-4" />
+                    <span>Enregistrer le produit vedette</span>
+                  </button>
                 </div>
-
-                <button
-                  onClick={handleSaveTypography}
-                  className="w-full py-3 px-5 bg-[#073587] hover:bg-[#05235c] text-white text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Appliquer cette police et cette taille à tout le site</span>
-                </button>
-              </div>
+              </form>
             </div>
           )}
 
-          {/* TAB 4: COLORS */}
-          {activeTab === 'colors' && (
-            <div className="space-y-6">
-              {/* Presets */}
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
-                <span className="text-xs font-black text-amber-900 uppercase tracking-wider block">
-                  Palettes prédéfinies en 1 clic :
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { name: "Bleu Royal & Or (Défaut)", primary: "#073587", dark: "#05235c", accent: "#f59e0b", bg: "#ffffff", text: "#0f172a" },
-                    { name: "Émeraude & Or Africain", primary: "#15803d", dark: "#052e16", accent: "#d97706", bg: "#ffffff", text: "#0f172a" },
-                    { name: "Bordeaux Impérial & Cuivre", primary: "#881337", dark: "#4c0519", accent: "#ea580c", bg: "#ffffff", text: "#0f172a" },
-                    { name: "Obsidienne & Cobalt", primary: "#1e3a8a", dark: "#0f172a", accent: "#38bdf8", bg: "#ffffff", text: "#0f172a" },
-                    { name: "Terracotta & Chaleur", primary: "#9a3412", dark: "#431407", accent: "#f59e0b", bg: "#fffbeb", text: "#1c1917" }
-                  ].map(preset => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      onClick={() => applyColorPreset(preset)}
-                      className="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-black hover:shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
-                    >
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: preset.primary }} />
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: preset.accent }} />
-                      <span>{preset.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Color Pickers */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-[#073587]" />
-                  <span>Personnaliser les Couleurs du Site</span>
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Primary Color */}
-                  <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                    <label className="block text-xs font-black text-slate-800">
-                      Couleur Principale (Boutons, titres, logo) :
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={tempPrimary}
-                        onChange={(e) => {
-                          setTempPrimary(e.target.value);
-                          updateColors({ primary: e.target.value });
-                        }}
-                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
-                      />
-                      <input
-                        type="text"
-                        value={tempPrimary}
-                        onChange={(e) => {
-                          setTempPrimary(e.target.value);
-                          updateColors({ primary: e.target.value });
-                        }}
-                        className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Primary Dark Color */}
-                  <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                    <label className="block text-xs font-black text-slate-800">
-                      Couleur Sombre (Entête haute & Pied de page) :
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={tempDark}
-                        onChange={(e) => {
-                          setTempDark(e.target.value);
-                          updateColors({ primaryDark: e.target.value });
-                        }}
-                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
-                      />
-                      <input
-                        type="text"
-                        value={tempDark}
-                        onChange={(e) => {
-                          setTempDark(e.target.value);
-                          updateColors({ primaryDark: e.target.value });
-                        }}
-                        className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Accent Color */}
-                  <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                    <label className="block text-xs font-black text-slate-800">
-                      Couleur d'Accent (Or, étoiles, promotions) :
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={tempAccent}
-                        onChange={(e) => {
-                          setTempAccent(e.target.value);
-                          updateColors({ accent: e.target.value });
-                        }}
-                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
-                      />
-                      <input
-                        type="text"
-                        value={tempAccent}
-                        onChange={(e) => {
-                          setTempAccent(e.target.value);
-                          updateColors({ accent: e.target.value });
-                        }}
-                        className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Background Color */}
-                  <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                    <label className="block text-xs font-black text-slate-800">
-                      Couleur de Fond du Site :
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={tempBg}
-                        onChange={(e) => {
-                          setTempBg(e.target.value);
-                          updateColors({ bgColor: e.target.value });
-                        }}
-                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
-                      />
-                      <input
-                        type="text"
-                        value={tempBg}
-                        onChange={(e) => {
-                          setTempBg(e.target.value);
-                          updateColors({ bgColor: e.target.value });
-                        }}
-                        className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Text Color */}
-                  <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                    <label className="block text-xs font-black text-slate-800">
-                      Couleur du Texte Principal :
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={tempText}
-                        onChange={(e) => {
-                          setTempText(e.target.value);
-                          updateColors({ textColor: e.target.value });
-                        }}
-                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-300"
-                      />
-                      <input
-                        type="text"
-                        value={tempText}
-                        onChange={(e) => {
-                          setTempText(e.target.value);
-                          updateColors({ textColor: e.target.value });
-                        }}
-                        className="w-full px-2 py-1 text-xs font-mono font-black rounded border border-slate-300"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleSaveColors}
-                  className="w-full py-3 px-5 bg-[#073587] hover:bg-[#05235c] text-white text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Enregistrer et appliquer ces couleurs</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: HEADER (ENTÊTE PRINCIPALE) */}
+          {/* TAB 7: ENTÊTE & MENU (Strictement 1 seule ligne) */}
           {activeTab === 'header' && (
             <div className="space-y-6">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <Layout className="w-4 h-4 text-[#073587]" />
-                  <span>Gérer l'Entête Principale & les Onglets</span>
-                </h3>
-
-                {/* Toggles for header elements */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <label className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer">
-                    <span className="text-xs font-black text-slate-800">Micro-barre du haut :</span>
-                    <input
-                      type="checkbox"
-                      checked={headerConfig.showTopBar}
-                      onChange={(e) => updateHeaderConfig({ showTopBar: e.target.checked })}
-                      className="w-4 h-4 accent-[#073587]"
-                    />
-                  </label>
-
-                  <label className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer">
-                    <span className="text-xs font-black text-slate-800">Bouton WhatsApp entête :</span>
-                    <input
-                      type="checkbox"
-                      checked={headerConfig.showWhatsAppBtn}
-                      onChange={(e) => updateHeaderConfig({ showWhatsAppBtn: e.target.checked })}
-                      className="w-4 h-4 accent-[#073587]"
-                    />
-                  </label>
-
-                  <label className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer">
-                    <span className="text-xs font-black text-slate-800">Bouton "Commander" entête :</span>
-                    <input
-                      type="checkbox"
-                      checked={headerConfig.showOrderBtn}
-                      onChange={(e) => updateHeaderConfig({ showOrderBtn: e.target.checked })}
-                      className="w-4 h-4 accent-[#073587]"
-                    />
-                  </label>
+                <div className="border-b border-slate-100 pb-3">
+                  <h3 className="text-base font-black text-slate-900">
+                    Configuration de l'Entête Principale (Ligne Unique)
+                  </h3>
+                  <p className="text-xs text-slate-600 font-semibold">
+                    Tout reste parfaitement aligné sur la même ligne (Logo + Liens + Boutons).
+                  </p>
                 </div>
 
-                {/* Brand title customization */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">Titre de marque :</label>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Nom Marque
+                    </label>
                     <input
                       type="text"
                       value={tempBrandTitle}
                       onChange={(e) => setTempBrandTitle(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">Texte en surbrillance :</label>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Mot Mis en Valeur
+                    </label>
                     <input
                       type="text"
                       value={tempBrandHighlight}
                       onChange={(e) => setTempBrandHighlight(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-amber-600"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">Sous-titre :</label>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Sous-titre Marque
+                    </label>
                     <input
                       type="text"
                       value={tempBrandSubtitle}
                       onChange={(e) => setTempBrandSubtitle(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
                     />
                   </div>
                 </div>
 
-                <button
-                  onClick={handleSaveHeader}
-                  className="py-2 px-4 bg-slate-800 hover:bg-slate-900 text-white text-xs font-black rounded-xl cursor-pointer"
-                >
-                  Mettre à jour le titre de l'entête
-                </button>
+                <div className="flex flex-wrap items-center gap-4 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={showWhatsAppBtn}
+                      onChange={(e) => setShowWhatsAppBtn(e.target.checked)}
+                      className="rounded text-emerald-600"
+                    />
+                    <span>Bouton WhatsApp visible dans l'entête</span>
+                  </label>
 
-                {/* Manage and Delete Nav Links */}
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={showOrderBtn}
+                      onChange={(e) => setShowOrderBtn(e.target.checked)}
+                      className="rounded text-[#073587]"
+                    />
+                    <span>Bouton d'action Formations visible</span>
+                  </label>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={handleSaveHeader}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Enregistrer la marque de l'entête</span>
+                  </button>
+                </div>
+
+                {/* Nav Links Management */}
                 <div className="pt-4 border-t border-slate-200">
-                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-2">
-                    Onglets de Navigation (Afficher, Masquer ou Supprimer) :
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-3">
+                    Liens de navigation actifs dans l'entête :
                   </h4>
-                  <div className="space-y-2 mb-4">
+
+                  <div className="space-y-2">
                     {headerConfig.navLinks.map((link) => (
-                      <div
-                        key={link.id}
-                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3"
-                      >
+                      <div key={link.id} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-900">{link.label}</span>
+                          <span className="text-[10px] font-mono text-slate-500">({link.href})</span>
+                        </div>
+
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => toggleNavLinkVisibility(link.id)}
-                            className={`p-1.5 rounded-lg text-xs font-black flex items-center gap-1 cursor-pointer ${
+                            className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer ${
                               link.visible
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-slate-200 text-slate-500'
+                                ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                             }`}
-                            title={link.visible ? "Masquer cet onglet" : "Afficher cet onglet"}
                           >
                             {link.visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                            <span>{link.visible ? "Visible" : "Masqué"}</span>
+                            <span>{link.visible ? 'Visible' : 'Masqué'}</span>
                           </button>
-                          <span className={`text-xs font-black ${link.visible ? 'text-slate-900' : 'text-slate-400 line-through'}`}>
-                            {link.label}
-                          </span>
-                          <span className="text-[10px] font-mono text-slate-400">({link.href})</span>
-                        </div>
 
-                        {deleteNavConfirmId === link.id ? (
-                          <div className="flex items-center gap-1.5 shrink-0 bg-red-50 p-1 rounded-lg border border-red-200">
+                          {deleteNavConfirmId === link.id ? (
+                            <div className="flex items-center gap-1 bg-red-100 p-1 rounded-lg">
+                              <button
+                                onClick={() => {
+                                  deleteNavLink(link.id);
+                                  setDeleteNavConfirmId(null);
+                                }}
+                                className="px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-black"
+                              >
+                                Supprimer
+                              </button>
+                              <button
+                                onClick={() => setDeleteNavConfirmId(null)}
+                                className="px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px]"
+                              >
+                                Annuler
+                              </button>
+                            </div>
+                          ) : (
                             <button
                               type="button"
-                              onClick={() => {
-                                deleteNavLink(link.id);
-                                setDeleteNavConfirmId(null);
-                                showToast(`Onglet "${link.label}" supprimé.`);
-                              }}
-                              className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-black cursor-pointer shadow-xs"
+                              onClick={() => setDeleteNavConfirmId(link.id)}
+                              className="p-1 text-slate-400 hover:text-red-600"
+                              title="Supprimer ce lien"
                             >
-                              Confirmer
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteNavConfirmId(null)}
-                              className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold cursor-pointer"
-                            >
-                              Annuler
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setDeleteNavConfirmId(link.id)}
-                            className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg cursor-pointer"
-                            title="Supprimer cet onglet"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
 
-                  {/* Add New Nav Link Form */}
-                  <form onSubmit={handleAddNavLink} className="p-3.5 bg-blue-50/50 border border-blue-200 rounded-xl flex flex-wrap gap-2 items-center">
+                  {/* Add Nav Link */}
+                  <form onSubmit={handleAddNavLink} className="mt-3 flex flex-wrap items-center gap-2">
                     <input
                       type="text"
-                      required
-                      placeholder="Nom de l'onglet (ex: Blog)"
                       value={newNavLabel}
                       onChange={(e) => setNewNavLabel(e.target.value)}
-                      className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-bold bg-white flex-1 min-w-[140px]"
+                      placeholder="Nom de l'onglet (ex: Blog)"
+                      className="text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none flex-1 min-w-[140px]"
                     />
                     <input
                       type="text"
-                      required
-                      placeholder="Lien ancre (ex: #contact)"
                       value={newNavHref}
                       onChange={(e) => setNewNavHref(e.target.value)}
-                      className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-bold bg-white flex-1 min-w-[140px]"
+                      placeholder="Lien (ex: #tarifs)"
+                      className="text-xs font-mono px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none flex-1 min-w-[140px]"
                     />
                     <button
                       type="submit"
-                      className="px-4 py-1.5 bg-[#073587] text-white text-xs font-black rounded-lg hover:bg-[#05235c] cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-lg transition-colors cursor-pointer"
                     >
-                      + Ajouter un onglet
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ajouter</span>
                     </button>
                   </form>
                 </div>
@@ -1412,472 +1587,825 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
             </div>
           )}
 
-          {/* TAB 6: FOOTER (BAS DE PAGE) */}
+          {/* TAB 8: BAS DE PAGE (FOOTER) */}
           {activeTab === 'footer' && (
             <div className="space-y-6">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <Layout className="w-4 h-4 text-[#073587]" />
-                  <span>Personnaliser ou Supprimer des Éléments du Bas de Page</span>
-                </h3>
-
-                {/* Toggles for footer blocks */}
-                <div className="space-y-2">
-                  <label className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer">
-                    <span className="text-xs font-black text-slate-800">
-                      Bloc 1 : Présentation de la marque, slogan & coordonnées :
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={footerConfig.showBrandBlock}
-                      onChange={(e) => updateFooterConfig({ showBrandBlock: e.target.checked })}
-                      className="w-4 h-4 accent-[#073587]"
-                    />
-                  </label>
-
-                  <label className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer">
-                    <span className="text-xs font-black text-slate-800">
-                      Bloc 2 : Solutions & Tarifs officiels :
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={footerConfig.showServicesBlock}
-                      onChange={(e) => updateFooterConfig({ showServicesBlock: e.target.checked })}
-                      className="w-4 h-4 accent-[#073587]"
-                    />
-                  </label>
-
-                  <label className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer">
-                    <span className="text-xs font-black text-slate-800">
-                      Bloc 3 : Accès rapide & Connexion Propriétaire :
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={footerConfig.showQuickLinksBlock}
-                      onChange={(e) => updateFooterConfig({ showQuickLinksBlock: e.target.checked })}
-                      className="w-4 h-4 accent-[#073587]"
-                    />
-                  </label>
-
-                  <label className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer">
-                    <span className="text-xs font-black text-slate-800">
-                      Mention Nom de domaine & Adresses professionnelles :
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={footerConfig.showDomainMention}
-                      onChange={(e) => updateFooterConfig({ showDomainMention: e.target.checked })}
-                      className="w-4 h-4 accent-[#073587]"
-                    />
-                  </label>
+                <div className="border-b border-slate-100 pb-3">
+                  <h3 className="text-base font-black text-slate-900">
+                    Configuration du Bas de Page (Pied de Page)
+                  </h3>
+                  <p className="text-xs text-slate-600 font-semibold">
+                    Le bouton du compte propriétaire reste discrètement accessible dans le coin inférieur du bas de page.
+                  </p>
                 </div>
 
-                {/* Copyright Text */}
-                <div className="pt-2">
-                  <label className="block text-xs font-black text-slate-700 mb-1">
-                    Texte de Copyright & Mentions légales :
+                <div>
+                  <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                    Texte de Copyright officiel
                   </label>
                   <input
                     type="text"
                     value={tempCopyright}
                     onChange={(e) => setTempCopyright(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
+                    className="w-full text-xs font-medium px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
                   />
                 </div>
 
-                <button
-                  onClick={handleSaveFooter}
-                  className="w-full py-3 px-5 bg-[#073587] hover:bg-[#05235c] text-white text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Enregistrer les modifications du bas de page</span>
-                </button>
+                <div className="space-y-2 pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={showBrandBlock}
+                      onChange={(e) => setShowBrandBlock(e.target.checked)}
+                      className="rounded text-[#073587]"
+                    />
+                    <span>Afficher le bloc de présentation et mission</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={showServicesBlock}
+                      onChange={(e) => setShowServicesBlock(e.target.checked)}
+                      className="rounded text-[#073587]"
+                    />
+                    <span>Afficher le bloc des 4 Formations</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={showQuickLinksBlock}
+                      onChange={(e) => setShowQuickLinksBlock(e.target.checked)}
+                      className="rounded text-[#073587]"
+                    />
+                    <span>Afficher le bloc Liens Rapides & Espace Propriétaire</span>
+                  </label>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveFooter}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Enregistrer le bas de page</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* TAB 7: MEDIAS & VIDEO */}
-          {activeTab === 'media' && (
+          {/* TAB 9: COULEURS DU SITE */}
+          {activeTab === 'colors' && (
             <div className="space-y-6">
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-[#073587] font-bold flex items-center gap-2">
-                <Upload className="w-4 h-4 shrink-0" />
-                <span>
-                  Téléchargez directement vos fichiers depuis votre ordinateur ou appareil Android.
-                </span>
-              </div>
-
-              {/* Logo */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-[#073587]" />
-                  <span>Logo Africa Web (Image 1)</span>
-                </h3>
-                <div className="flex flex-col sm:flex-row items-center gap-5">
-                  <div className="w-32 h-24 bg-slate-100 rounded-xl border border-slate-200 p-2 flex items-center justify-center">
-                    <img src={logoPreview} alt="Aperçu logo" className="max-h-full max-w-full object-contain" />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <label className="block text-xs font-black text-slate-700">
-                      Télécharger un nouveau logo depuis votre appareil (Android / PC) :
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={isUploading}
-                      onChange={(e) => handleImageUpload(e, (dataUrl) => {
-                        setLogoPreview(dataUrl);
-                        updateAgencyInfo({ logoUrl: dataUrl });
-                        showToast("Nouveau logo appliqué sur tout le site !");
-                      })}
-                      className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#073587] file:text-white cursor-pointer"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Photo Responsable */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-emerald-600" />
-                  <span>Photo du Responsable du Site (Image 3)</span>
-                </h3>
-                <div className="flex flex-col sm:flex-row items-center gap-5">
-                  <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-slate-200 flex items-center justify-center bg-slate-100 shrink-0">
-                    <img src={responsablePreview} alt="Responsable" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <label className="block text-xs font-black text-slate-700">
-                      Télécharger une nouvelle photo de profil :
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={isUploading}
-                      onChange={(e) => handleImageUpload(e, (dataUrl) => {
-                        setResponsablePreview(dataUrl);
-                        updateAgencyInfo({ responsablePhoto: dataUrl });
-                        showToast("Photo du responsable mise à jour sur le site !");
-                      })}
-                      className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white cursor-pointer"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Video */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <Video className="w-4 h-4 text-amber-500" />
-                  <span>Rubrique Vidéo de Présentation</span>
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">Titre de la vidéo :</label>
-                    <input
-                      type="text"
-                      value={videoTitle}
-                      onChange={(e) => setVideoTitle(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
-                    />
+                    <h3 className="text-base font-black text-slate-900">
+                      Personnalisation des Couleurs du Site
+                    </h3>
+                    <p className="text-xs text-slate-600 font-semibold">
+                      Chaque nuance est appliquée instantanément en temps réel sur toute l'interface.
+                    </p>
                   </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">Sous-titre :</label>
-                    <input
-                      type="text"
-                      value={videoSubtitle}
-                      onChange={(e) => setVideoSubtitle(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-bold"
-                    />
+                  <button
+                    onClick={handleSaveColors}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Sauvegarder les couleurs</span>
+                  </button>
+                </div>
+
+                {/* Presets */}
+                <div className="space-y-2">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    Palettes Harmonieuses Prêtes à l'Emploi :
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { name: 'Bleu Royal & Or', primary: '#073587', dark: '#05235c', accent: '#f59e0b', bg: '#ffffff', text: '#0f172a' },
+                      { name: 'Nuit Ébène & Ambre', primary: '#0f172a', dark: '#020617', accent: '#d97706', bg: '#fafaf9', text: '#1c1917' },
+                      { name: 'Émeraude Croissance', primary: '#047857', dark: '#064e3b', accent: '#fbbf24', bg: '#ffffff', text: '#064e3b' },
+                      { name: 'Indigo Haute Tech', primary: '#4338ca', dark: '#312e81', accent: '#38bdf8', bg: '#ffffff', text: '#0f172a' },
+                    ].map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => applyColorPreset(preset)}
+                        className="p-2.5 rounded-xl border border-slate-200 hover:border-slate-400 bg-white text-left transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="w-4 h-4 rounded-full border" style={{ backgroundColor: preset.primary }} />
+                          <span className="w-4 h-4 rounded-full border" style={{ backgroundColor: preset.accent }} />
+                          <span className="w-4 h-4 rounded-full border" style={{ backgroundColor: preset.bg }} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800 group-hover:text-[#073587] block">
+                          {preset.name}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
+                {/* Manual Pickers */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                    <label className="text-xs font-black text-slate-900 block">Couleur Principale</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={tempPrimary}
+                        onChange={(e) => setTempPrimary(e.target.value)}
+                        className="w-10 h-10 rounded cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={tempPrimary}
+                        onChange={(e) => setTempPrimary(e.target.value)}
+                        className="w-full text-xs font-mono font-bold px-2 py-1.5 bg-white border border-slate-300 rounded outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                    <label className="text-xs font-black text-slate-900 block">Couleur Sombre / Entête</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={tempDark}
+                        onChange={(e) => setTempDark(e.target.value)}
+                        className="w-10 h-10 rounded cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={tempDark}
+                        onChange={(e) => setTempDark(e.target.value)}
+                        className="w-full text-xs font-mono font-bold px-2 py-1.5 bg-white border border-slate-300 rounded outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                    <label className="text-xs font-black text-slate-900 block">Couleur Accent / Or</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={tempAccent}
+                        onChange={(e) => setTempAccent(e.target.value)}
+                        className="w-10 h-10 rounded cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={tempAccent}
+                        onChange={(e) => setTempAccent(e.target.value)}
+                        className="w-full text-xs font-mono font-bold px-2 py-1.5 bg-white border border-slate-300 rounded outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                    <label className="text-xs font-black text-slate-900 block">Arrière-Plan du Site</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={tempBg}
+                        onChange={(e) => setTempBg(e.target.value)}
+                        className="w-10 h-10 rounded cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={tempBg}
+                        onChange={(e) => setTempBg(e.target.value)}
+                        className="w-full text-xs font-mono font-bold px-2 py-1.5 bg-white border border-slate-300 rounded outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                    <label className="text-xs font-black text-slate-900 block">Texte Principal</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={tempText}
+                        onChange={(e) => setTempText(e.target.value)}
+                        className="w-10 h-10 rounded cursor-pointer border border-slate-300"
+                      />
+                      <input
+                        type="text"
+                        value={tempText}
+                        onChange={(e) => setTempText(e.target.value)}
+                        className="w-full text-xs font-mono font-bold px-2 py-1.5 bg-white border border-slate-300 rounded outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 10: POLICES & TAILLES (TITRES, SOUS-TITRES, TEXTES, PRIX) */}
+          {activeTab === 'typography' && (
+            <div className="space-y-6">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      Gestion Précise des Écritures & Polices du Site
+                    </h3>
+                    <p className="text-xs text-slate-600 font-semibold">
+                      Personnalisez individuellement la police, la taille et la graisse des Titres, des Sous-titres, du Corps de texte et des Prix.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSaveTypography}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Sauvegarder toutes les écritures</span>
+                  </button>
+                </div>
+
+                {/* 1. Titres Principaux (H1, H2) */}
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                  <div>
-                    <label className="block text-xs font-black text-slate-800 mb-1">
-                      Importer une vidéo depuis votre appareil (MP4, WebM - PC ou Android) :
-                    </label>
-                    <input
-                      type="file"
-                      accept="video/mp4,video/webm,video/ogg,video/quicktime"
-                      disabled={isUploading}
-                      onChange={handleVideoUpload}
-                      className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-600 file:text-white cursor-pointer"
-                    />
-                    <span className="text-[11px] text-slate-500 font-bold mt-1 block">
-                      Enregistré de manière fluide et sécurisée sans bloquer le site web.
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-[#073587] tracking-wider flex items-center gap-2">
+                      <Type className="w-4 h-4" />
+                      <span>1. Titres Principaux (H1, H2, En-têtes)</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      Taille active : {tempTitleFontSize}px
                     </span>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">
-                      Ou saisir une URL de vidéo en ligne :
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="https://..."
-                      value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono font-bold"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Police des Titres
+                      </label>
+                      <select
+                        value={tempTitleFontFamily}
+                        onChange={(e) => setTempTitleFontFamily(e.target.value)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      >
+                        <option value="Arial, Helvetica, sans-serif">Arial / Helvetica (Classique & Clair)</option>
+                        <option value="Inter, system-ui, sans-serif">Inter (Moderne & Net)</option>
+                        <option value="system-ui, -apple-system, sans-serif">System UI (Android / iOS)</option>
+                        <option value="'Segoe UI', Roboto, sans-serif">Segoe UI / Roboto</option>
+                        <option value="Montserrat, sans-serif">Montserrat (Impactant)</option>
+                        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                        <option value="Impact, sans-serif">Impact (Très Puissant)</option>
+                        <option value="Georgia, serif">Georgia (Élégant)</option>
+                      </select>
+                    </div>
 
-                  {/* Video Preview */}
-                  {videoUrl && (
-                    <div className="pt-2">
-                      <span className="text-[11px] font-black text-slate-700 block mb-1.5">
-                        Aperçu de la vidéo active :
-                      </span>
-                      <div className="max-w-md aspect-video bg-black rounded-xl overflow-hidden border border-slate-300">
-                        <video src={videoUrl} controls className="w-full h-full object-contain" />
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Taille des Titres ({tempTitleFontSize}px)
+                      </label>
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="range"
+                          min={20}
+                          max={56}
+                          value={tempTitleFontSize}
+                          onChange={(e) => setTempTitleFontSize(Number(e.target.value))}
+                          className="flex-1 accent-[#073587]"
+                        />
+                        <span className="text-xs font-bold text-slate-800 w-10 text-right">{tempTitleFontSize}px</span>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Produit Vedette */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-amber-600" />
-                  <span>Produit Vedette (Image 2 & Lien de Vente)</span>
-                </h3>
-                <div className="flex flex-col sm:flex-row items-center gap-5">
-                  <div className="w-24 h-32 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
-                    <img src={productImagePreview} alt="Produit vedette" className="w-full h-full object-contain" />
-                  </div>
-                  <div className="flex-1 space-y-3 w-full">
                     <div>
-                      <label className="block text-xs font-black text-slate-700 mb-1">
-                        Changer la photo du produit vedette :
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Graisse des Titres
                       </label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={isUploading}
-                        onChange={(e) => handleImageUpload(e, (dataUrl) => {
-                          setProductImagePreview(dataUrl);
-                          updateAgencyInfo({
-                            featuredProduct: {
-                              ...agencyInfo.featuredProduct,
-                              image: dataUrl
-                            }
-                          });
-                          showToast("Photo du produit vedette mise à jour !");
-                        })}
-                        className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-600 file:text-white cursor-pointer"
-                      />
+                      <select
+                        value={tempTitleFontWeight}
+                        onChange={(e) => setTempTitleFontWeight(e.target.value)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      >
+                        <option value="600">Semi-Gras (600)</option>
+                        <option value="700">Gras (700)</option>
+                        <option value="800">Extra-Gras (800)</option>
+                        <option value="900">Black / Ultra (900) - Recommandé</option>
+                      </select>
                     </div>
+                  </div>
+                </div>
+
+                {/* 2. Sous-titres & Accroches */}
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-amber-700 tracking-wider flex items-center gap-2">
+                      <Type className="w-4 h-4" />
+                      <span>2. Sous-titres & Accroches</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      Taille active : {tempSubtitleFontSize}px
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-black text-slate-700 mb-1">
-                        Lien URL de redirection :
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Police des Sous-titres
                       </label>
-                      <input
-                        type="url"
-                        value={productLink}
-                        onChange={(e) => {
-                          setProductLink(e.target.value);
-                          updateAgencyInfo({
-                            featuredProduct: {
-                              ...agencyInfo.featuredProduct,
-                              link: e.target.value
-                            }
-                          });
+                      <select
+                        value={tempSubtitleFontFamily}
+                        onChange={(e) => setTempSubtitleFontFamily(e.target.value)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      >
+                        <option value="Arial, Helvetica, sans-serif">Arial / Helvetica</option>
+                        <option value="Inter, system-ui, sans-serif">Inter</option>
+                        <option value="system-ui, -apple-system, sans-serif">System UI (Android / iOS)</option>
+                        <option value="'Segoe UI', Roboto, sans-serif">Segoe UI / Roboto</option>
+                        <option value="Georgia, serif">Georgia</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Taille ({tempSubtitleFontSize}px)
+                      </label>
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="range"
+                          min={12}
+                          max={26}
+                          value={tempSubtitleFontSize}
+                          onChange={(e) => setTempSubtitleFontSize(Number(e.target.value))}
+                          className="flex-1 accent-amber-500"
+                        />
+                        <span className="text-xs font-bold text-slate-800 w-10 text-right">{tempSubtitleFontSize}px</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Graisse
+                      </label>
+                      <select
+                        value={tempSubtitleFontWeight}
+                        onChange={(e) => setTempSubtitleFontWeight(e.target.value)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      >
+                        <option value="400">Normal (400)</option>
+                        <option value="600">Semi-Gras (600) - Recommandé</option>
+                        <option value="700">Gras (700)</option>
+                        <option value="800">Extra-Gras (800)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Textes Généraux & Paragraphes */}
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
+                      <Type className="w-4 h-4" />
+                      <span>3. Textes Généraux & Paragraphes (Corps de page)</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      Taille active : {tempFontSize}px
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Police du Corps de texte
+                      </label>
+                      <select
+                        value={tempFontFamily}
+                        onChange={(e) => setTempFontFamily(e.target.value)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      >
+                        <option value="Arial, Helvetica, sans-serif">Arial / Helvetica (Standard)</option>
+                        <option value="Inter, system-ui, sans-serif">Inter (Moderne & Net)</option>
+                        <option value="system-ui, -apple-system, sans-serif">System UI (Android / iOS)</option>
+                        <option value="'Segoe UI', Roboto, sans-serif">Segoe UI / Roboto</option>
+                        <option value="Georgia, serif">Georgia (Serif)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Taille du texte ({tempFontSize}px)
+                      </label>
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="range"
+                          min={14}
+                          max={24}
+                          value={tempFontSize}
+                          onChange={(e) => setTempFontSize(Number(e.target.value))}
+                          className="flex-1 accent-slate-800"
+                        />
+                        <span className="text-xs font-bold text-slate-800 w-10 text-right">{tempFontSize}px</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Graisse du texte
+                      </label>
+                      <select
+                        value={tempFontWeight}
+                        onChange={(e) => setTempFontWeight(e.target.value)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      >
+                        <option value="400">Normal (400)</option>
+                        <option value="600">Semi-Gras (600)</option>
+                        <option value="700">Gras - Recommandé (700)</option>
+                        <option value="800">Extra-Gras (800)</option>
+                        <option value="900">Black / Ultra (900)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Prix & Tarifs (Arial gras lisible) */}
+                <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-emerald-800 tracking-wider flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-emerald-600" />
+                      <span>4. Prix & Tarifs des Formations (Ex: 10 000f, 25 000f)</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-300">
+                      Taille active : {tempPriceFontSize}px
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Police des Prix (Arial Recommandé)
+                      </label>
+                      <select
+                        value={tempPriceFontFamily}
+                        onChange={(e) => setTempPriceFontFamily(e.target.value)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      >
+                        <option value="Arial, Helvetica, sans-serif">Arial (Haute Visibilité & Recommandé)</option>
+                        <option value="Inter, system-ui, sans-serif">Inter</option>
+                        <option value="system-ui, -apple-system, sans-serif">System UI</option>
+                        <option value="'Segoe UI', Roboto, sans-serif">Segoe UI / Roboto</option>
+                        <option value="Impact, sans-serif">Impact</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Taille des Prix ({tempPriceFontSize}px)
+                      </label>
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="range"
+                          min={20}
+                          max={50}
+                          value={tempPriceFontSize}
+                          onChange={(e) => setTempPriceFontSize(Number(e.target.value))}
+                          className="flex-1 accent-emerald-600"
+                        />
+                        <span className="text-xs font-bold text-emerald-900 w-10 text-right">{tempPriceFontSize}px</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Graisse des Prix
+                      </label>
+                      <select
+                        value={tempPriceFontWeight}
+                        onChange={(e) => setTempPriceFontWeight(e.target.value)}
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                      >
+                        <option value="700">Gras (700)</option>
+                        <option value="800">Extra-Gras (800)</option>
+                        <option value="900">Black / Ultra (900) - Recommandé</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Aperçu en direct multi-niveaux */}
+                <div className="p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span className="text-[11px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Aperçu en Direct selon vos Réglages</span>
+                    </span>
+                    <span className="text-[11px] text-slate-400">Mise à jour en temps réel</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Live Title */}
+                    <div
+                      style={{
+                        fontFamily: tempTitleFontFamily,
+                        fontSize: `${tempTitleFontSize}px`,
+                        fontWeight: tempTitleFontWeight
+                      }}
+                      className="text-white leading-tight"
+                    >
+                      Formation en Création d'Agent IA pour Entreprises
+                    </div>
+
+                    {/* Live Subtitle */}
+                    <div
+                      style={{
+                        fontFamily: tempSubtitleFontFamily,
+                        fontSize: `${tempSubtitleFontSize}px`,
+                        fontWeight: tempSubtitleFontWeight
+                      }}
+                      className="text-amber-300 leading-snug"
+                    >
+                      Automatisez vos ventes, support client 24h/7j et prospection avec n8n, Flowise et WhatsApp API
+                    </div>
+
+                    {/* Live Body */}
+                    <p
+                      style={{
+                        fontFamily: tempFontFamily,
+                        fontSize: `${tempFontSize}px`,
+                        fontWeight: tempFontWeight
+                      }}
+                      className="text-slate-300 leading-relaxed"
+                    >
+                      Africa Web accompagne les professionnels et créateurs africains avec des programmes pratiques intensifs sans prérequis techniques.
+                    </p>
+
+                    {/* Live Price */}
+                    <div className="pt-2 flex items-baseline gap-2">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Tarif :</span>
+                      <span
+                        style={{
+                          fontFamily: tempPriceFontFamily,
+                          fontSize: `${tempPriceFontSize}px`,
+                          fontWeight: tempPriceFontWeight
                         }}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono font-bold text-[#073587]"
-                      />
+                        className="text-amber-400 leading-none"
+                      >
+                        20 000 FCFA
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-
-              <button
-                onClick={handleSaveMedia}
-                className="w-full py-3.5 px-6 rounded-xl text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] shadow-md flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Save className="w-4 h-4" />
-                <span>Enregistrer tous les médias & la vidéo</span>
-              </button>
             </div>
           )}
 
-          {/* TAB 8: SETTINGS, TARIFS & BOUTONS */}
+          {/* TAB 11: WHATSAPP & CONTACTS */}
           {activeTab === 'settings' && (
             <div className="space-y-6">
-              {/* WhatsApp & Email */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-emerald-600" />
-                  <span>Numéro WhatsApp & Email (Boutons d'appel)</span>
-                </h3>
+                <div className="border-b border-slate-100 pb-3">
+                  <h3 className="text-base font-black text-slate-900">
+                    Coordonnées de Contact Direct & Numéro WhatsApp
+                  </h3>
+                  <p className="text-xs text-slate-600 font-semibold">
+                    Tous les boutons de commande et le bouton flottant s'adresseront immédiatement à ce numéro.
+                  </p>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">
-                      Numéro WhatsApp (ex: 2290168546237) :
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Numéro WhatsApp (Format sans +)
                     </label>
                     <input
                       type="text"
                       value={whatsappNum}
                       onChange={(e) => setWhatsappNum(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono font-bold"
+                      placeholder="229XXXXXXXX"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg font-mono outline-none"
                     />
+                    <span className="text-[10px] text-slate-500 mt-1 block">Exemple Bénin : 229XXXXXXXX</span>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-slate-700 mb-1">
-                      Email officiel des commandes :
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Affichage du numéro (Lisible par les clients)
+                    </label>
+                    <input
+                      type="text"
+                      value={whatsappDisplay}
+                      onChange={(e) => setWhatsappDisplay(e.target.value)}
+                      placeholder="+229 XX XX XX XX"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Adresse Email Officielle
                     </label>
                     <input
                       type="email"
                       value={emailAddr}
                       onChange={(e) => setEmailAddr(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono font-bold"
+                      placeholder="contact@africa-web.com"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
                     />
                   </div>
                 </div>
 
-                <button
-                  onClick={handleSaveSettings}
-                  className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Enregistrer les coordonnées des boutons</span>
-                </button>
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveSettings}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Enregistrer les coordonnées</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 12: STATISTIQUES */}
+          {activeTab === 'stats' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Visites Totales</span>
+                  <span className="text-2xl font-black text-slate-900 font-mono">{analytics.totalVisits.toLocaleString()}</span>
+                  <span className="text-[10px] text-emerald-600 font-bold block mt-1">+14% ce mois</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Visiteurs Uniques</span>
+                  <span className="text-2xl font-black text-slate-900 font-mono">{analytics.uniqueVisitors.toLocaleString()}</span>
+                  <span className="text-[10px] text-slate-500 font-bold block mt-1">Android & PC</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Taux de Clic (CTR)</span>
+                  <span className="text-2xl font-black text-amber-600 font-mono">{ctrRate}%</span>
+                  <span className="text-[10px] text-slate-500 font-bold block mt-1">{totalClicks} interactions</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Contacts WhatsApp</span>
+                  <span className="text-2xl font-black text-emerald-600 font-mono">{analytics.clicksWhatsApp}</span>
+                  <span className="text-[10px] text-emerald-700 font-bold block mt-1">Conversions directes</span>
+                </div>
               </div>
 
-              {/* Pricing Packages */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-amber-500" />
-                  <span>Modifier les Prix des 3 Offres Officielles</span>
-                </h3>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-slate-900 uppercase">Visites par Pays :</h4>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={simulateVisit}
+                      className="px-3 py-1 bg-blue-50 text-[#073587] text-xs font-bold rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                    >
+                      + Simuler 1 visite
+                    </button>
+                    <button
+                      onClick={resetAnalytics}
+                      className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+                    >
+                      Réinitialiser
+                    </button>
+                  </div>
+                </div>
 
-                <div className="space-y-3">
-                  {pricingPackages.map((pkg) => (
-                    <div key={pkg.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                      <div>
-                        <span className="text-xs font-black text-slate-900 block">{pkg.name}</span>
-                        <span className="text-[11px] text-slate-500 font-bold">{pkg.delay}</span>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Prix affiché :</label>
-                        <input
-                          type="text"
-                          value={pkg.price}
-                          onChange={(e) => updatePricingPackage(pkg.id, { price: e.target.value })}
-                          className="w-full px-2.5 py-1.5 text-xs font-black rounded border border-slate-300 font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Hébergement :</label>
-                        <input
-                          type="text"
-                          value={pkg.hosting || ''}
-                          onChange={(e) => updatePricingPackage(pkg.id, { hosting: e.target.value })}
-                          className="w-full px-2.5 py-1.5 text-xs font-bold rounded border border-slate-300"
-                        />
-                      </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {Object.entries(analytics.countryVisits).map(([country, visits]) => (
+                    <div key={country} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-800">{country}</span>
+                      <span className="text-slate-900 font-mono">{visits}</span>
                     </div>
                   ))}
                 </div>
               </div>
-
-              {/* Account & Disconnect Card */}
-              <div className="p-4 bg-slate-900 text-white rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-800">
-                <div>
-                  <h4 className="text-xs font-black text-amber-300 flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>Session Propriétaire : kgmservices229@gmail.com</span>
-                  </h4>
-                  <p className="text-[11px] text-slate-400 font-bold mt-0.5">
-                    Vous êtes actuellement connecté et avez tous les droits d'administration sur Africa Web.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    logoutOwner();
-                    onClose();
-                  }}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-md shrink-0 border border-red-500"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Me déconnecter</span>
-                </button>
-              </div>
-
-              {/* Reset Factory Settings */}
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h4 className="text-xs font-black text-red-900 flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-red-600" />
-                    <span>Réinitialiser les paramètres d'usine</span>
-                  </h4>
-                  <p className="text-[11px] text-red-700 font-bold">Rétablir les couleurs, polices et données par défaut d'origine</p>
-                </div>
-                {resetConfirm ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        resetToDefaults();
-                      }}
-                      className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white text-xs font-black rounded-lg cursor-pointer shadow-xs"
-                    >
-                      Oui, réinitialiser tout
-                    </button>
-                    <button
-                      onClick={() => setResetConfirm(false)}
-                      className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-lg cursor-pointer"
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setResetConfirm(true)}
-                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Réinitialiser</span>
-                  </button>
-                )}
-              </div>
             </div>
           )}
-        </div>
 
-        {/* Barre Inférieure Permanente de Déconnexion & Statut */}
-        <div className="bg-slate-900 border-t border-slate-800 p-3 sm:p-4 px-4 sm:px-6 flex flex-wrap items-center justify-between gap-3 text-white text-xs shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-bold text-slate-300">
-              Espace Propriétaire Actif : <span className="text-amber-300 font-mono">kgmservices229@gmail.com</span>
-            </span>
-          </div>
+          {/* TAB 13: SÉCURITÉ & ACCÈS (Strictement confidentiel) */}
+          {activeTab === 'security' && (
+            <div className="space-y-6">
+              <form onSubmit={handleSaveSecurityCredentials} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                <div className="border-b border-slate-100 pb-3">
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                    <span>Identifiants Confidentiels du Propriétaire</span>
+                  </h3>
+                  <p className="text-xs text-slate-600 font-semibold">
+                    Vos identifiants ne sont jamais visibles par vos clients. Vous pouvez les modifier en toute sécurité ici.
+                  </p>
+                </div>
 
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                logoutOwner();
-                onClose();
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-md cursor-pointer border border-red-500"
-              title="Se déconnecter de votre compte propriétaire"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Se Déconnecter</span>
-            </button>
+                {secError && (
+                  <div className="p-3 bg-red-50 text-red-800 rounded-xl text-xs font-bold border border-red-200 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                    <span>{secError}</span>
+                  </div>
+                )}
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-black text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors cursor-pointer"
-            >
-              Fermer et voir le site
-            </button>
-          </div>
+                {secSuccess && (
+                  <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-bold border border-emerald-200 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{secSuccess}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Email Propriétaire (Identifiant de connexion)
+                    </label>
+                    <input
+                      type="email"
+                      value={secEmail}
+                      onChange={(e) => setSecEmail(e.target.value)}
+                      required
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Nouveau Mot de Passe (Optionnel)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showSecPassword ? 'text' : 'password'}
+                        value={secNewPassword}
+                        onChange={(e) => setSecNewPassword(e.target.value)}
+                        placeholder="Laisser vide pour ne pas changer"
+                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none pr-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSecPassword(!showSecPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showSecPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 uppercase mb-1">
+                      Confirmer le Nouveau Mot de Passe
+                    </label>
+                    <input
+                      type={showSecPassword ? 'text' : 'password'}
+                      value={secConfirmPassword}
+                      onChange={(e) => setSecConfirmPassword(e.target.value)}
+                      placeholder="Répétez le mot de passe"
+                      className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  {resetConfirm ? (
+                    <div className="flex items-center gap-2 bg-red-50 p-2 rounded-xl border border-red-200">
+                      <span className="text-xs text-red-700 font-bold">Réinitialiser toute la plateforme ?</span>
+                      <button
+                        type="button"
+                        onClick={resetToDefaults}
+                        className="px-2.5 py-1 bg-red-600 text-white text-xs font-black rounded-lg hover:bg-red-700"
+                      >
+                        Oui, tout effacer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setResetConfirm(false)}
+                        className="px-2.5 py-1 bg-slate-200 text-slate-800 text-xs font-bold rounded-lg"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setResetConfirm(true)}
+                      className="text-xs text-red-600 hover:text-red-700 font-bold underline cursor-pointer"
+                    >
+                      Réinitialiser la configuration d'usine
+                    </button>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black text-white bg-[#073587] hover:bg-[#05235c] rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Mettre à jour mes accès</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </div>
     </div>

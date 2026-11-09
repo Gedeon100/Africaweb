@@ -6,9 +6,14 @@ import { getWhatsAppUrl } from '../data/agencyData';
 interface FooterProps {
   onOpenOwnerLogin: () => void;
   onOpenOwnerDashboard: () => void;
+  onOpenBusinessCardGenerator?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenOwnerLogin, onOpenOwnerDashboard }) => {
+export const Footer: React.FC<FooterProps> = ({
+  onOpenOwnerLogin,
+  onOpenOwnerDashboard,
+  onOpenBusinessCardGenerator
+}) => {
   const { agencyInfo, footerConfig, siteColors, isOwnerLoggedIn, logoutOwner, trackClick } = useAgency();
 
   const scrollToTop = () => {
@@ -80,111 +85,147 @@ export const Footer: React.FC<FooterProps> = ({ onOpenOwnerLogin, onOpenOwnerDas
           {footerConfig.showServicesBlock && (
             <div className="lg:col-span-4 space-y-3">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                Nos Solutions & Tarifs Officiels
+                Nos 5 Formations & Tarifs
               </h4>
               <ul className="space-y-2.5 text-xs text-slate-400 font-semibold">
                 <li>
                   <a href="#tarifs" className="hover:text-amber-400 transition-colors flex items-center justify-between">
-                    <span>Site Internet Vitrine pour entreprises</span>
-                    <span className="text-white font-mono font-bold">50 000 FCFA</span>
+                    <span>1. Vidéo Publicitaire IA (Google Flow, Arena)</span>
+                    <span
+                      style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+                      className="text-amber-300 font-black text-xs sm:text-sm tracking-normal"
+                    >
+                      10 000 FCFA
+                    </span>
                   </a>
                 </li>
                 <li>
                   <a href="#tarifs" className="hover:text-amber-400 transition-colors flex items-center justify-between">
-                    <span>Boutique Marketplace & E-commerce</span>
-                    <span className="text-white font-mono font-bold">100 000 FCFA</span>
+                    <span>2. Produit Digital Professionnel</span>
+                    <span
+                      style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+                      className="text-amber-300 font-black text-xs sm:text-sm tracking-normal"
+                    >
+                      15 000 FCFA
+                    </span>
                   </a>
                 </li>
                 <li>
                   <a href="#tarifs" className="hover:text-amber-400 transition-colors flex items-center justify-between">
-                    <span>Plateforme Webinaire & Formations</span>
-                    <span className="text-white font-mono font-bold">250 000 FCFA</span>
+                    <span>3. Création des Images Publicitaires</span>
+                    <span
+                      style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+                      className="text-amber-300 font-black text-xs sm:text-sm tracking-normal"
+                    >
+                      5 000 FCFA
+                    </span>
                   </a>
                 </li>
                 <li>
-                  <a href="#presentation-video" className="hover:text-amber-400 transition-colors">
-                    Vidéo de présentation de l'agence
+                  <a href="#tarifs" className="hover:text-amber-400 transition-colors flex items-center justify-between">
+                    <span>4. Site Web Pro Sans Code (Hostinger/Gratuit)</span>
+                    <span
+                      style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+                      className="text-amber-300 font-black text-xs sm:text-sm tracking-normal"
+                    >
+                      25 000 F / 15 000 F
+                    </span>
                   </a>
                 </li>
                 <li>
-                  <a href="#produit-vedette" className="hover:text-amber-400 transition-colors">
-                    Produit Vedette : Guide des 150+ Recettes Béninoises
+                  <a href="#tarifs" className="hover:text-amber-400 transition-colors flex items-center justify-between">
+                    <span>5. Créer un Agent IA pour Entreprises</span>
+                    <span
+                      style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+                      className="text-amber-300 font-black text-xs sm:text-sm tracking-normal"
+                    >
+                      20 000 FCFA
+                    </span>
                   </a>
                 </li>
               </ul>
             </div>
           )}
 
-          {/* Quick Access & Owner Login (Can be toggled by owner) */}
+          {/* Quick Access */}
           {footerConfig.showQuickLinksBlock && (
             <div className="lg:col-span-3 space-y-3">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                Accès Rapide & Espace Sécurisé
+                Accès Rapide
               </h4>
               <ul className="space-y-2.5 text-xs text-slate-400 font-semibold">
                 <li>
                   <a href="#hero" className="hover:text-white transition-colors">Accueil</a>
                 </li>
                 <li>
-                  <a href="#realisations" className="hover:text-white transition-colors">Exemplaires & Réalisations</a>
+                  <a href="#tarifs" className="hover:text-white transition-colors">Formations & Tarifs</a>
                 </li>
                 <li>
-                  <a href="#tarifs" className="hover:text-white transition-colors">Grille Tarifaire</a>
+                  <a href="#presentation-video" className="hover:text-white transition-colors">Vidéo de Présentation</a>
                 </li>
                 <li>
-                  <a href="#contact" className="hover:text-white transition-colors">Contactez-nous</a>
+                  <a href="#apropos" className="hover:text-white transition-colors">À Propos & Équipe</a>
                 </li>
-                <li className="pt-2 border-t border-slate-800 space-y-1.5">
-                  {isOwnerLoggedIn ? (
-                    <>
-                      <button
-                        onClick={onOpenOwnerDashboard}
-                        className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>Mon Tableau de Bord (Connecté)</span>
-                      </button>
-                      <button
-                        onClick={logoutOwner}
-                        className="flex items-center gap-1.5 text-red-400 hover:text-red-300 text-[11px] font-black transition-colors cursor-pointer"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Se déconnecter</span>
-                      </button>
-                    </>
-                  ) : (
+                <li>
+                  <a href="#contact" className="hover:text-white transition-colors">Contact & Inscription</a>
+                </li>
+                {onOpenBusinessCardGenerator && (
+                  <li>
                     <button
-                      onClick={onOpenOwnerLogin}
-                      className="flex items-center gap-1.5 text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer"
+                      type="button"
+                      onClick={onOpenBusinessCardGenerator}
+                      className="text-amber-400 hover:text-amber-300 transition-colors font-bold flex items-center gap-1 cursor-pointer"
                     >
-                      <Lock className="w-4 h-4" />
-                      <span>Espace Propriétaire (Connexion)</span>
+                      <span>Carte de Visite Gratuite</span>
                     </button>
-                  )}
-                </li>
+                  </li>
+                )}
               </ul>
             </div>
           )}
         </div>
 
-        {/* Bottom copyright & back-to-top */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-semibold">
+        {/* Bottom copyright & Owner button in bottom corner */}
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-semibold border-t border-slate-800">
           <p>{footerConfig.copyrightText}</p>
 
-          <div className="flex items-center gap-4">
-            <button
-              onClick={isOwnerLoggedIn ? onOpenOwnerDashboard : onOpenOwnerLogin}
-              className="text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <span>Accès Propriétaire</span>
-            </button>
+          <div className="flex items-center gap-3">
+            {/* Bouton Compte Propriétaire dans le coin inférieur de la bas de page */}
+            {isOwnerLoggedIn ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onOpenOwnerDashboard}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 font-bold transition-all cursor-pointer text-xs"
+                  title="Ouvrir le Panneau de Contrôle Propriétaire"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Tableau de Bord Propriétaire</span>
+                </button>
+                <button
+                  onClick={logoutOwner}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-900/40 hover:bg-red-800 text-red-300 border border-red-500/30 font-bold transition-all cursor-pointer text-xs"
+                  title="Se déconnecter"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Déconnexion</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenOwnerLogin}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all cursor-pointer"
+                title="Accès Espace Propriétaire (Connexion)"
+              >
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Compte Propriétaire</span>
+              </button>
+            )}
 
             <button
               onClick={scrollToTop}
-              className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors cursor-pointer text-xs"
             >
-              <span>Haut de page</span>
+              <span>Haut</span>
               <ArrowUp className="w-3.5 h-3.5" />
             </button>
           </div>
