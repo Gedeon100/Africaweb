@@ -16,47 +16,17 @@ import {
   Sliders,
   CheckCircle2,
   Trash2,
-  Upload
+  Upload,
+  Share2,
+  Copy,
+  Check
 } from 'lucide-react';
 import { useAgency } from '../context/AgencyContext';
+import { parseUniversalVideoUrl, generateShareableVideoUrl } from '../utils/videoUtils';
 
 interface VideoPresentationProps {
   onOpenOwnerDashboard?: () => void;
   onOpenOwnerLogin?: () => void;
-}
-
-// Utility to parse YouTube, Vimeo or direct video source
-function parseVideoSource(url: string | undefined): {
-  kind: 'youtube' | 'vimeo' | 'html5' | 'empty';
-  embedUrl?: string;
-  sourceUrl?: string;
-} {
-  if (!url || !url.trim()) {
-    return { kind: 'empty' };
-  }
-  const cleanUrl = url.trim();
-
-  // YouTube detection (youtube.com, youtu.be, shorts)
-  const ytMatch = cleanUrl.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/
-  );
-  if (ytMatch && ytMatch[1]) {
-    return {
-      kind: 'youtube',
-      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=0&rel=0&playsinline=1&modestbranding=1`
-    };
-  }
-
-  // Vimeo detection
-  const vimeoMatch = cleanUrl.match(/(?:vimeo\.com\/)(\d+)/);
-  if (vimeoMatch && vimeoMatch[1]) {
-    return {
-      kind: 'vimeo',
-      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?playsinline=1&title=0&byline=0`
-    };
-  }
-
-  return { kind: 'html5', sourceUrl: cleanUrl };
 }
 
 function formatTime(seconds: number): string {
@@ -86,8 +56,19 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isBuffering, setIsBuffering] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  const videoSource = parseVideoSource(videoPresentation.videoUrl);
+  const videoInfo = parseUniversalVideoUrl(videoPresentation.videoUrl);
+
+  const handleShare = () => {
+    const shareUrl = generateShareableVideoUrl(videoPresentation.videoUrl);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2500);
+      }).catch(() => {});
+    }
+  };
 
   // Reset error when URL changes
   useEffect(() => {
@@ -196,7 +177,6 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({
       }
     } catch (err) {
       console.warn('Fullscreen toggle failed:', err);
-      // Fallback for iOS/mobile WebKit video element
       if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
         (videoRef.current as any).webkitEnterFullscreen();
       }
@@ -246,7 +226,7 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({
   }
 
   // If no video URL is configured (deleted)
-  if (videoSource.kind === 'empty') {
+  if (videoInfo.platform === 'empty') {
     if (isOwnerLoggedIn) {
       return (
         <section id="presentation-video" className="py-12 bg-slate-50 border-b border-slate-200">
@@ -259,7 +239,7 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({
                 Aucune vidéo de présentation configurée
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto mb-6">
-                Vous avez supprimé la vidéo ou elle n'est pas encore définie. Vous pouvez téléverser un fichier MP4 ou coller un lien YouTube depuis votre espace propriétaire.
+                Vous avez supprimé la vidéo ou elle n'est pas encore définie. Vous pouvez téléverser un fichier MP4 ou coller un lien YouTube / Google Drive depuis votre espace propriétaire.
               </p>
               {onOpenOwnerDashboard && (
                 <button
@@ -323,21 +303,37 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block shrink-0" />
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block shrink-0" />
               <span className="ml-2 font-mono text-[11px] text-slate-300 truncate">
-                {videoSource.kind === 'youtube'
-                  ? 'YouTube Player (Optimisé Mobile Android & PC)'
-                  : videoSource.kind === 'vimeo'
-                  ? 'Vimeo Player (Optimisé Mobile Android & PC)'
-                  : 'africa-web.com/presentation-video.mp4'}
+                {videoInfo.label}
               </span>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              {/* Quick Share Link button */}
+              <button
+                onClick={handleShare}
+                className="text-[10px] sm:text-[11px] text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 px-2 py-0.5 rounded transition-colors inline-flex items-center gap-1 cursor-pointer font-bold"
+                title="Copier le lien public direct de cette vidéo pour WhatsApp et les réseaux sociaux"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    <span className="text-emerald-400">Lien copié !</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-3 h-3 text-amber-400" />
+                    <span>Partager</span>
+                  </>
+                )}
+              </button>
+
               {videoPresentation.duration && (
                 <span className="font-mono text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 font-bold">
                   {videoPresentation.duration}
                 </span>
               )}
-              {videoSource.kind === 'html5' && (
+
+              {!videoInfo.isIframe && (
                 <button
                   onClick={() => setUseNativeControls(prev => !prev)}
                   className="text-[10px] text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 px-2 py-0.5 rounded transition-colors hidden sm:inline-flex items-center gap-1 cursor-pointer"
@@ -352,34 +348,23 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({
 
           {/* Main Player Display Area */}
           <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
-            {/* 1. YOUTUBE EMBED */}
-            {videoSource.kind === 'youtube' && videoSource.embedUrl && (
+            {/* 1. UNIVERSAL IFRAME EMBED (YouTube, Google Drive, Vimeo, Dailymotion) */}
+            {videoInfo.isIframe && videoInfo.embedUrl && (
               <iframe
-                src={videoSource.embedUrl}
+                src={videoInfo.embedUrl}
                 title={videoPresentation.title}
                 className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                 allowFullScreen
               />
             )}
 
-            {/* 2. VIMEO EMBED */}
-            {videoSource.kind === 'vimeo' && videoSource.embedUrl && (
-              <iframe
-                src={videoSource.embedUrl}
-                title={videoPresentation.title}
-                className="w-full h-full border-0"
-                allow="autoplay; fullscreen; picture-in-picture"
-                allowFullScreen
-              />
-            )}
-
-            {/* 3. HTML5 DIRECT VIDEO (MP4, WebM, Blob IndexedDB) */}
-            {videoSource.kind === 'html5' && videoSource.sourceUrl && (
+            {/* 2. HTML5 DIRECT VIDEO (MP4, WebM, Local File, Dropbox, Blob) */}
+            {!videoInfo.isIframe && videoInfo.streamUrl && (
               <>
                 <video
                   ref={videoRef}
-                  src={videoSource.sourceUrl}
+                  src={videoInfo.streamUrl}
                   className="w-full h-full object-contain cursor-pointer"
                   playsInline
                   // @ts-ignore
@@ -410,7 +395,7 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({
                     console.error('HTML5 Video Error:', e);
                     // If current video URL fails (e.g. broken external link or device-specific blob),
                     // instantly fall back to the bundled local presentation video so Netlify visitors never see a broken video!
-                    if (videoSource.sourceUrl && videoSource.sourceUrl !== '/videos/africaweb-presentation.mp4') {
+                    if (videoInfo.streamUrl && videoInfo.streamUrl !== '/videos/africaweb-presentation.mp4') {
                       console.warn('Switching to bundled video /videos/africaweb-presentation.mp4');
                       updateVideoPresentation({ videoUrl: '/videos/africaweb-presentation.mp4' });
                       setHasError(false);
@@ -470,9 +455,9 @@ export const VideoPresentation: React.FC<VideoPresentationProps> = ({
                       >
                         Réessayer
                       </button>
-                      {videoSource.sourceUrl && (
+                      {videoInfo.streamUrl && (
                         <a
-                          href={videoSource.sourceUrl}
+                          href={videoInfo.streamUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 transition-colors cursor-pointer"

@@ -338,6 +338,26 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // 5. Video Presentation
   const [videoPresentation, setVideoPresentation] = useState<VideoPresentationData>(() => {
+    // 1. Check if URL has query parameter ?v=... or ?video=... (Shareable link across all devices)
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const queryVideo = params.get('v') || params.get('video');
+        if (queryVideo && queryVideo.trim()) {
+          const cleanUrl = decodeURIComponent(queryVideo.trim());
+          const newVideoState: VideoPresentationData = {
+            ...defaultVideoPresentation,
+            videoUrl: cleanUrl,
+            visible: true
+          };
+          safeLocalStorageSet(`${STORAGE_KEY_PREFIX}video`, JSON.stringify(newVideoState));
+          return newVideoState;
+        }
+      } catch (e) {
+        console.warn('Could not parse query video param:', e);
+      }
+    }
+
     const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}video`);
     if (saved) {
       try {

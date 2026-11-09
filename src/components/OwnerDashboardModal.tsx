@@ -36,11 +36,14 @@ import {
   Monitor,
   Play,
   Pause,
-  RotateCcw
+  RotateCcw,
+  Share2,
+  Copy
 } from 'lucide-react';
 import { useAgency, NavLinkItem } from '../context/AgencyContext';
 import { PricingPackage, PricingOption } from '../data/agencyData';
 import { compressImageFile, saveMediaBlob, deleteMediaBlob } from '../utils/mediaStorage';
+import { parseUniversalVideoUrl, generateShareableVideoUrl } from '../utils/videoUtils';
 
 interface OwnerDashboardModalProps {
   isOpen: boolean;
@@ -61,38 +64,6 @@ type TabKey =
   | 'settings'
   | 'stats'
   | 'security';
-
-// Parse video source for live preview in owner dashboard
-function parseVideoSource(url: string | undefined): {
-  kind: 'youtube' | 'vimeo' | 'html5' | 'empty';
-  embedUrl?: string;
-  sourceUrl?: string;
-} {
-  if (!url || !url.trim()) {
-    return { kind: 'empty' };
-  }
-  const cleanUrl = url.trim();
-
-  const ytMatch = cleanUrl.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/
-  );
-  if (ytMatch && ytMatch[1]) {
-    return {
-      kind: 'youtube',
-      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=0&rel=0&playsinline=1`
-    };
-  }
-
-  const vimeoMatch = cleanUrl.match(/(?:vimeo\.com\/)(\d+)/);
-  if (vimeoMatch && vimeoMatch[1]) {
-    return {
-      kind: 'vimeo',
-      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?playsinline=1`
-    };
-  }
-
-  return { kind: 'html5', sourceUrl: cleanUrl };
-}
 
 export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen, onClose }) => {
   const {
@@ -1361,33 +1332,22 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                   {/* Video Player Display */}
                   <div className="relative aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center border border-slate-800">
                     {(() => {
-                      const parsed = parseVideoSource(videoUrl);
-                      if (parsed.kind === 'youtube' && parsed.embedUrl) {
+                      const parsed = parseUniversalVideoUrl(videoUrl);
+                      if (parsed.isIframe && parsed.embedUrl) {
                         return (
                           <iframe
                             src={parsed.embedUrl}
-                            title="Aperçu YouTube"
+                            title="Aperçu vidéo"
                             className="w-full h-full border-0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                             allowFullScreen
                           />
                         );
                       }
-                      if (parsed.kind === 'vimeo' && parsed.embedUrl) {
-                        return (
-                          <iframe
-                            src={parsed.embedUrl}
-                            title="Aperçu Vimeo"
-                            className="w-full h-full border-0"
-                            allow="autoplay; fullscreen; picture-in-picture"
-                            allowFullScreen
-                          />
-                        );
-                      }
-                      if (parsed.kind === 'html5' && parsed.sourceUrl) {
+                      if (!parsed.isIframe && parsed.streamUrl) {
                         return (
                           <video
-                            src={parsed.sourceUrl}
+                            src={parsed.streamUrl}
                             controls
                             playsInline
                             // @ts-ignore
@@ -1409,19 +1369,30 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                     })()}
                   </div>
 
-                  {/* Source details */}
+                  {/* Source details & Share link button */}
                   {videoUrl && (
                     <div className="text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-2 px-1 pt-1 border-t border-slate-800">
-                      <span className="truncate max-w-md font-mono text-[10px] text-slate-300">
-                        Source : {videoUrl.startsWith('blob:') ? 'Fichier téléversé localement (IndexedDB)' : videoUrl}
-                      </span>
-                      <span className="text-amber-400 font-bold text-[10px]">
-                        {videoUrl.includes('youtube') || videoUrl.includes('youtu.be')
-                          ? 'Source : Vidéo YouTube'
-                          : videoUrl.includes('vimeo')
-                          ? 'Source : Vidéo Vimeo'
-                          : 'Source : Fichier direct MP4/WebM'}
-                      </span>
+                      <div className="flex items-center gap-2 max-w-md truncate">
+                        <span className="text-amber-400 font-bold text-[10px]">
+                          {parseUniversalVideoUrl(videoUrl).label}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const shareUrl = generateShareableVideoUrl(videoUrl);
+                          if (navigator.clipboard) {
+                            navigator.clipboard.writeText(shareUrl).then(() => {
+                              showToast("Lien public copié ! Partagez-le sur WhatsApp : la vidéo sera lue sur tout Android et PC.");
+                            });
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-white rounded-md text-[10px] font-bold transition-colors cursor-pointer"
+                        title="Copier le lien public direct pour WhatsApp ou les réseaux"
+                      >
+                        <Share2 className="w-3 h-3 text-amber-400" />
+                        <span>Copier le lien de partage</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1527,35 +1498,63 @@ export const OwnerDashboardModal: React.FC<OwnerDashboardModalProps> = ({ isOpen
                   </div>
                 </div>
 
-                {/* Option 3: Remplacer par URL web ou YouTube */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                {/* Option 3: Remplacer par URL web, YouTube ou Google Drive */}
+                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
                       <ExternalLink className="w-4 h-4" />
                     </div>
                     <div>
                       <h4 className="text-xs font-black text-slate-900">
-                        Remplacer par un lien direct ou une vidéo YouTube / Vimeo
+                        Remplacer par un lien web universel (YouTube, Google Drive, MP4, Dropbox)
                       </h4>
                       <p className="text-[11px] text-slate-600">
-                        Collez l'adresse web d'une vidéo YouTube (ex : <code>https://www.youtube.com/watch?v=...</code> ou <code>https://youtu.be/...</code>) ou un lien MP4 direct
+                        Collez l'adresse d'une vidéo YouTube, d'un fichier <strong>Google Drive</strong>, Dropbox ou un lien direct MP4.
                       </p>
                     </div>
                   </div>
+
                   <div className="flex flex-col sm:flex-row gap-2 pt-1">
                     <input
                       type="text"
                       value={videoUrl}
                       onChange={(e) => setVideoUrl(e.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=... ou https://.../video.mp4"
+                      placeholder="https://www.youtube.com/watch?v=... ou https://drive.google.com/file/d/... ou https://.../video.mp4"
                       className="flex-grow text-xs font-mono px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:border-[#073587]"
                     />
                     <button
                       type="button"
                       onClick={handleApplyVideoUrl}
-                      className="px-4 py-2 bg-[#073587] hover:bg-[#05235c] text-white text-xs font-black rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+                      className="px-4 py-2 bg-[#073587] hover:bg-[#05235c] text-white text-xs font-black rounded-lg transition-colors cursor-pointer whitespace-nowrap shadow-xs"
                     >
                       Appliquer ce lien
+                    </button>
+                  </div>
+
+                  {/* Quick Preset Buttons */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[10px]">
+                    <span className="font-bold text-slate-500">Raccourcis :</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVideoUrl('/videos/africaweb-presentation.mp4');
+                        updateVideoPresentation({ videoUrl: '/videos/africaweb-presentation.mp4', visible: true });
+                        showToast("Vidéo officielle du site appliquée !");
+                      }}
+                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded cursor-pointer border border-slate-200"
+                    >
+                      Vidéo Officielle Netlify
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVideoUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+                        updateVideoPresentation({ videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', visible: true });
+                        showToast("Lien YouTube d'exemple appliqué !");
+                      }}
+                      className="px-2 py-0.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded cursor-pointer border border-red-200"
+                    >
+                      Exemple YouTube
                     </button>
                   </div>
                 </div>
